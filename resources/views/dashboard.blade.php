@@ -20,11 +20,17 @@
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.department_help') }}</p>
                 </a>
 
-                <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <a href="{{ route('services.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
+                    <p class="text-sm font-medium text-gray-500">{{ __('messages.services') }}</p>
+                    <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.services') }}</p>
+                    <p class="mt-2 text-sm text-gray-600">{{ __('messages.services_summary') }}</p>
+                </a>
+
+                <a href="{{ route('finance.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
                     <p class="text-sm font-medium text-gray-500">{{ __('messages.finance') }}</p>
-                    <p class="mt-2 text-2xl font-semibold text-gray-950">Sadaka & Zaka</p>
+                    <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.finance') }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.finance_summary') }}</p>
-                </div>
+                </a>
 
                 <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                     <p class="text-sm font-medium text-gray-500">{{ __('messages.reports') }}</p>

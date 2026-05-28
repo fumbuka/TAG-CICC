@@ -42,6 +42,12 @@ new class extends Component
                     <x-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
                         {{ __('messages.zones') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
+                        {{ __('messages.services') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
+                        {{ __('messages.finance') }}
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -110,6 +116,12 @@ new class extends Component
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
                 {{ __('messages.zones') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
+                {{ __('messages.services') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
+                {{ __('messages.finance') }}
             </x-responsive-nav-link>
         </div>
 

@@ -16,4 +16,14 @@ class Zone extends Model
     {
         return $this->hasMany(Member::class);
     }
+
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class);
+    }
+
+    public function financialTransactions(): HasMany
+    {
+        return $this->hasMany(FinancialTransaction::class);
+    }
 }

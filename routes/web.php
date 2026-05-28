@@ -1,7 +1,9 @@
 <?php
 
 use App\Livewire\Departments\Index as DepartmentsIndex;
+use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Members\Index as MembersIndex;
+use App\Livewire\Services\Index as ServicesIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +38,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('members', MembersIndex::class)->name('members.index');
     Route::get('departments', DepartmentsIndex::class)->name('departments.index');
     Route::get('zones', ZonesIndex::class)->name('zones.index');
+    Route::get('services', ServicesIndex::class)->name('services.index');
+    Route::get('finance', FinanceIndex::class)->name('finance.index');
 });
 
 require __DIR__.'/auth.php';
