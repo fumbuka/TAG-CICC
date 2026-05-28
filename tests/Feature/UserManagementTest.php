@@ -51,11 +51,10 @@ class UserManagementTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(UsersIndex::class)
-            ->set('name', 'Neema Adam')
+            ->set('member_id', $member->id)
             ->set('email', 'neema.adam@tag-cicc.or.tz')
             ->set('phone_number', '0654849299')
             ->set('password', 'password123')
-            ->set('member_id', $member->id)
             ->set('role_names', [$role->name])
             ->call('save')
             ->assertHasNoErrors()
@@ -70,8 +69,15 @@ class UserManagementTest extends TestCase
     public function test_user_can_be_edited_and_current_user_cannot_deactivate_self(): void
     {
         $admin = User::factory()->create();
-        $target = User::factory()->create([
-            'name' => 'Old Name',
+        $member = Member::create([
+            'first_name' => 'Old',
+            'last_name' => 'Name',
+            'gender' => 'male',
+            'date_of_birth' => '1988-01-01',
+        ]);
+        $target = User::factory()->create();
+        $member->update([
+            'user_id' => $target->id,
         ]);
         $role = Role::create([
             'name' => 'Mhasibu wa Kanisa',
@@ -81,7 +87,7 @@ class UserManagementTest extends TestCase
         Livewire::actingAs($admin)
             ->test(UsersIndex::class)
             ->call('edit', $target->id)
-            ->set('name', 'New Name')
+            ->set('email', 'new.name@tag-cicc.or.tz')
             ->set('role_names', [$role->name])
             ->call('save')
             ->assertHasNoErrors()
@@ -89,7 +95,8 @@ class UserManagementTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'id' => $target->id,
-            'name' => 'New Name',
+            'email' => 'new.name@tag-cicc.or.tz',
+            'name' => 'Old Name',
         ]);
 
         Livewire::actingAs($admin)
@@ -98,5 +105,22 @@ class UserManagementTest extends TestCase
             ->assertHasErrors('user_action');
 
         $this->assertTrue($admin->refresh()->is_active);
+    }
+
+    public function test_member_is_required_before_system_access_is_created(): void
+    {
+        $admin = User::factory()->create();
+        $role = Role::create([
+            'name' => 'Katibu wa Kanisa',
+            'guard_name' => 'web',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(UsersIndex::class)
+            ->set('email', 'ghost@tag-cicc.or.tz')
+            ->set('password', 'password123')
+            ->set('role_names', [$role->name])
+            ->call('save')
+            ->assertHasErrors('member_id');
     }
 }

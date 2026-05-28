@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -23,6 +24,7 @@ class AuthenticationTest extends TestCase
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
+        $user->assignRole($this->accessRole());
 
         $component = Volt::test('pages.auth.login')
             ->set('form.login', $user->email)
@@ -42,6 +44,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create([
             'phone_number' => '0654849299',
         ]);
+        $user->assignRole($this->accessRole());
 
         $component = Volt::test('pages.auth.login')
             ->set('form.login', $user->phone_number)
@@ -54,6 +57,23 @@ class AuthenticationTest extends TestCase
             ->assertRedirect(route('dashboard', absolute: false));
 
         $this->assertAuthenticated();
+    }
+
+    public function test_users_without_roles_can_not_authenticate(): void
+    {
+        $user = User::factory()->create();
+
+        $component = Volt::test('pages.auth.login')
+            ->set('form.login', $user->email)
+            ->set('form.password', 'password');
+
+        $component->call('login');
+
+        $component
+            ->assertHasErrors()
+            ->assertNoRedirect();
+
+        $this->assertGuest();
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void
@@ -101,5 +121,13 @@ class AuthenticationTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertGuest();
+    }
+
+    private function accessRole(): Role
+    {
+        return Role::firstOrCreate([
+            'name' => 'Mshirika',
+            'guard_name' => 'web',
+        ]);
     }
 }

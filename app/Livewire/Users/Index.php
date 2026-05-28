@@ -23,8 +23,6 @@ class Index extends Component
 
     public string $search = '';
 
-    public string $name = '';
-
     public string $email = '';
 
     public string $phone_number = '';
@@ -41,23 +39,55 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatedMemberId(): void
+    {
+        if (! $this->member_id) {
+            $this->editingUserId = null;
+            $this->email = '';
+            $this->phone_number = '';
+            $this->password = '';
+            $this->role_names = [];
+
+            return;
+        }
+
+        $member = Member::with(['user.roles'])->find($this->member_id);
+
+        if (! $member) {
+            return;
+        }
+
+        $this->editingUserId = $member->user?->id;
+        $this->email = $member->user?->email ?? $member->email ?? '';
+        $this->phone_number = $member->user?->phone_number ?? $member->phone_number ?? '';
+        $this->password = '';
+        $this->role_names = $member->user?->roles->pluck('name')->all() ?? [];
+    }
+
     public function save(): void
     {
         $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'member_id' => ['required', 'integer', Rule::exists('members', 'id')],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingUserId)],
             'phone_number' => ['nullable', 'string', 'max:20', Rule::unique('users', 'phone_number')->ignore($this->editingUserId)],
             'password' => [$this->editingUserId ? 'nullable' : 'required', 'string', 'min:8'],
-            'member_id' => ['nullable', 'integer', Rule::exists('members', 'id')],
             'role_names' => ['required', 'array', 'min:1'],
             'role_names.*' => ['string', Rule::exists('roles', 'name')],
         ]);
 
-        $wasEditing = $this->editingUserId !== null;
+        $member = Member::with('user')->findOrFail($validated['member_id']);
+        $wasEditing = $this->editingUserId !== null || $member->user !== null;
 
-        DB::transaction(function () use ($validated): void {
+        DB::transaction(function () use ($member, $validated): void {
+            $fullName = collect([$member->first_name, $member->middle_name, $member->last_name])
+                ->filter()
+                ->join(' ');
+            $user = $this->editingUserId
+                ? User::findOrFail($this->editingUserId)
+                : $member->user;
+
             $attributes = [
-                'name' => $validated['name'],
+                'name' => $fullName,
                 'email' => $validated['email'],
                 'phone_number' => $validated['phone_number'] ?: null,
                 'is_active' => true,
@@ -67,22 +97,24 @@ class Index extends Component
                 $attributes['password'] = Hash::make($validated['password']);
             }
 
-            $user = $this->editingUserId
-                ? tap(User::findOrFail($this->editingUserId))->update($attributes)
-                : User::create($attributes);
+            if ($user) {
+                $user->update($attributes);
+            } else {
+                $user = User::create($attributes);
+            }
 
             $user->syncRoles($validated['role_names']);
 
             Member::query()
                 ->where('user_id', $user->id)
-                ->when($validated['member_id'], fn ($query) => $query->whereKeyNot($validated['member_id']))
+                ->whereKeyNot($member->id)
                 ->update(['user_id' => null]);
 
-            if ($validated['member_id']) {
-                Member::whereKey($validated['member_id'])->update([
-                    'user_id' => $user->id,
-                ]);
-            }
+            $member->update([
+                'user_id' => $user->id,
+                'email' => $validated['email'],
+                'phone_number' => $validated['phone_number'] ?: $member->phone_number,
+            ]);
         });
 
         $this->resetForm();
@@ -95,7 +127,6 @@ class Index extends Component
         $user = User::with(['roles', 'member'])->findOrFail($userId);
 
         $this->editingUserId = $user->id;
-        $this->name = $user->name;
         $this->email = $user->email;
         $this->phone_number = $user->phone_number ?? '';
         $this->member_id = $user->member?->id;
@@ -129,12 +160,19 @@ class Index extends Component
     {
         $users = User::query()
             ->with(['roles', 'member'])
+            ->whereHas('member')
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($query): void {
                     $query
                         ->where('name', 'like', "%{$this->search}%")
                         ->orWhere('email', 'like', "%{$this->search}%")
-                        ->orWhere('phone_number', 'like', "%{$this->search}%");
+                        ->orWhere('phone_number', 'like', "%{$this->search}%")
+                        ->orWhereHas('member', function ($query): void {
+                            $query
+                                ->where('first_name', 'like', "%{$this->search}%")
+                                ->orWhere('middle_name', 'like', "%{$this->search}%")
+                                ->orWhere('last_name', 'like', "%{$this->search}%");
+                        });
                 });
             })
             ->latest()
@@ -155,7 +193,6 @@ class Index extends Component
     {
         $this->reset([
             'editingUserId',
-            'name',
             'email',
             'phone_number',
             'password',

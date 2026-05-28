@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\DepartmentPosition;
 use App\Models\IncomeCategory;
 use App\Models\LeadershipTitle;
+use App\Models\Member;
 use App\Models\ServiceRoutine;
 use App\Models\ServiceType;
 use App\Models\User;
@@ -237,5 +238,18 @@ class DatabaseSeeder extends Seeder
         );
 
         $admin->assignRole('Super Admin');
+
+        Member::firstOrCreate(
+            ['email' => 'admin@tag-cicc.or.tz'],
+            [
+                'user_id' => $admin->id,
+                'first_name' => 'TAG-CICC',
+                'last_name' => 'Admin',
+                'gender' => 'male',
+                'phone_number' => '0654000000',
+                'source' => 'member',
+                'joined_at' => now()->toDateString(),
+            ],
+        );
     }
 }

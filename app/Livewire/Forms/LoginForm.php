@@ -48,6 +48,14 @@ class LoginForm extends Form
             'last_login_at' => now(),
         ])->save();
 
+        if (! Auth::user()->roles()->exists()) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'form.login' => trans('auth.failed'),
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

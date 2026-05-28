@@ -26,9 +26,19 @@
 
                 <form wire:submit="save" class="mt-5 space-y-4">
                     <div>
-                        <x-input-label for="name" :value="__('messages.name')" />
-                        <x-text-input wire:model="name" id="name" class="mt-1 block w-full" type="text" />
-                        <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                        <x-input-label for="member_id" :value="__('messages.linked_member')" />
+                        <select wire:model.live="member_id" id="member_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">{{ __('messages.no_member_selected') }}</option>
+                            @foreach ($members as $member)
+                                <option value="{{ $member->id }}">
+                                    {{ trim($member->first_name.' '.$member->middle_name.' '.$member->last_name) }}
+                                    @if ($member->user)
+                                        - {{ __('messages.account_linked') }}
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('member_id')" class="mt-2" />
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -49,22 +59,6 @@
                         <x-input-label for="password" :value="$editingUserId ? __('messages.new_password') : __('messages.password')" />
                         <x-text-input wire:model="password" id="password" class="mt-1 block w-full" type="password" autocomplete="new-password" />
                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
-                    </div>
-
-                    <div>
-                        <x-input-label for="member_id" :value="__('messages.linked_member')" />
-                        <select wire:model="member_id" id="member_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">{{ __('messages.no_member_selected') }}</option>
-                            @foreach ($members as $member)
-                                <option value="{{ $member->id }}">
-                                    {{ trim($member->first_name.' '.$member->middle_name.' '.$member->last_name) }}
-                                    @if ($member->user)
-                                        - {{ __('messages.account_linked') }}
-                                    @endif
-                                </option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('member_id')" class="mt-2" />
                     </div>
 
                     <div>
