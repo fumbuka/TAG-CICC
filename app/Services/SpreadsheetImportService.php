@@ -32,6 +32,10 @@ class SpreadsheetImportService
                 }
 
                 if ($headers === []) {
+                    if ($this->isTitleRow($values)) {
+                        continue;
+                    }
+
                     $headers = array_map(fn (mixed $header): string => $this->normalizeHeader((string) $header), $values);
 
                     continue;
@@ -77,6 +81,18 @@ class SpreadsheetImportService
             ->replace([' ', '-'], '_')
             ->snake()
             ->toString();
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     */
+    private function isTitleRow(array $values): bool
+    {
+        $filledCells = collect($values)
+            ->filter(fn (mixed $value): bool => trim((string) $value) !== '')
+            ->count();
+
+        return $filledCells === 1;
     }
 
     /**

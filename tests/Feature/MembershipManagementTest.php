@@ -23,6 +23,18 @@ class MembershipManagementTest extends TestCase
         $this->get('/members')->assertRedirect('/login');
     }
 
+    public function test_bulk_import_templates_can_be_downloaded(): void
+    {
+        $user = User::factory()->create();
+
+        foreach (['members', 'departments', 'zones'] as $type) {
+            $this->actingAs($user)
+                ->get(route('bulk-import-templates.download', $type))
+                ->assertOk()
+                ->assertDownload("tag-cicc-{$type}-template.xlsx");
+        }
+    }
+
     public function test_members_page_can_be_rendered(): void
     {
         $user = User::factory()->create();
@@ -123,7 +135,7 @@ class MembershipManagementTest extends TestCase
 
         $file = UploadedFile::fake()->createWithContent(
             'members.csv',
-            "first_name,last_name,gender,date_of_birth,phone_number,zone,departments\nNeema,Adam,female,1990-01-01,0654849299,Changombe,Maendeleo\n",
+            "TAG-CICC - Kiolezo cha Kupakia Washirika\nfirst_name,last_name,gender,date_of_birth,phone_number,zone,departments\nNeema,Adam,female,1990-01-01,0654849299,Changombe,Maendeleo\n",
         );
 
         Livewire::actingAs($user)
@@ -225,7 +237,7 @@ class MembershipManagementTest extends TestCase
 
         $file = UploadedFile::fake()->createWithContent(
             'departments.csv',
-            "name,description,is_age_based,minimum_age,maximum_age,gender_rule\nMedia,Idara ya matangazo,no,,,\n",
+            "TAG-CICC - Kiolezo cha Kupakia Idara\nname,description,is_age_based,minimum_age,maximum_age,gender_rule\nMedia,Idara ya matangazo,no,,,\n",
         );
 
         Livewire::actingAs($user)
@@ -297,7 +309,7 @@ class MembershipManagementTest extends TestCase
 
         $file = UploadedFile::fake()->createWithContent(
             'zones.csv',
-            "name,description\nMbagala,Washirika wa Mbagala\nKongowe,Washirika wa Kongowe\n",
+            "TAG-CICC - Kiolezo cha Kupakia Kanda\nname,description\nMbagala,Washirika wa Mbagala\nKongowe,Washirika wa Kongowe\n",
         );
 
         Livewire::actingAs($user)

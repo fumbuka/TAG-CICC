@@ -94,6 +94,7 @@ return [
     'zone_name' => 'Jina la kanda',
     'select_gender' => 'Chagua jinsia',
     'import_file' => 'Faili la kuingiza',
+    'download_template' => 'Pakua kiolezo',
     'upload' => 'Pakia',
     'service' => 'Ibada',
     'record_service' => 'Rekodi ibada',

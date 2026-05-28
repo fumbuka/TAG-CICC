@@ -94,6 +94,7 @@ return [
     'zone_name' => 'Zone name',
     'select_gender' => 'Select gender',
     'import_file' => 'Import file',
+    'download_template' => 'Download template',
     'upload' => 'Upload',
     'service' => 'Service',
     'record_service' => 'Record service',

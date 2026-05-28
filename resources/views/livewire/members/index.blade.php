@@ -185,8 +185,15 @@
         </div>
 
         <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.bulk_import_members') }}</h2>
-            <p class="mt-1 text-sm text-gray-600">{{ __('messages.members_import_help') }}</p>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.bulk_import_members') }}</h2>
+                    <p class="mt-1 text-sm text-gray-600">{{ __('messages.members_import_help') }}</p>
+                </div>
+                <a href="{{ route('bulk-import-templates.download', 'members') }}" class="inline-flex items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                    {{ __('messages.download_template') }}
+                </a>
+            </div>
 
             <form wire:submit="import" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div class="flex-1">

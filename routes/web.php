@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BulkImportTemplateController;
 use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Leadership\Index as LeadershipIndex;
@@ -47,6 +48,9 @@ Route::post('logout', function (Request $request) {
 })->middleware('auth')->name('logout');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('bulk-import-templates/{type}', BulkImportTemplateController::class)
+        ->name('bulk-import-templates.download');
+
     Route::get('members', MembersIndex::class)->name('members.index');
     Route::get('departments', DepartmentsIndex::class)->name('departments.index');
     Route::get('zones', ZonesIndex::class)->name('zones.index');
