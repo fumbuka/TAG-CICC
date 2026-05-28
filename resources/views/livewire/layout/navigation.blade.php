@@ -31,22 +31,31 @@ new class extends Component
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
+                        {{ __('messages.dashboard') }}
                     </x-nav-link>
                     <x-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
-                        {{ __('Members') }}
+                        {{ __('messages.members') }}
                     </x-nav-link>
                     <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
-                        {{ __('Departments') }}
+                        {{ __('messages.departments') }}
                     </x-nav-link>
                     <x-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
-                        {{ __('Zones') }}
+                        {{ __('messages.zones') }}
                     </x-nav-link>
                 </div>
             </div>
 
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">
+                <form method="POST" action="{{ route('language.update') }}" class="me-4">
+                    @csrf
+                    <label for="locale" class="sr-only">{{ __('messages.language') }}</label>
+                    <select id="locale" name="locale" onchange="this.form.submit()" class="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('messages.swahili') }}</option>
+                        <option value="en" @selected(app()->getLocale() === 'en')>{{ __('messages.english') }}</option>
+                    </select>
+                </form>
+
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
@@ -62,13 +71,13 @@ new class extends Component
 
                     <x-slot name="content">
                         <x-dropdown-link :href="route('profile')" wire:navigate>
-                            {{ __('Profile') }}
+                            {{ __('messages.profile') }}
                         </x-dropdown-link>
 
                         <!-- Authentication -->
                         <button wire:click="logout" class="w-full text-start">
                             <x-dropdown-link>
-                                {{ __('Log Out') }}
+                                {{ __('messages.logout') }}
                             </x-dropdown-link>
                         </button>
                     </x-slot>
@@ -91,16 +100,16 @@ new class extends Component
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
-                {{ __('Dashboard') }}
+                {{ __('messages.dashboard') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
-                {{ __('Members') }}
+                {{ __('messages.members') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
-                {{ __('Departments') }}
+                {{ __('messages.departments') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
-                {{ __('Zones') }}
+                {{ __('messages.zones') }}
             </x-responsive-nav-link>
         </div>
 
@@ -113,13 +122,22 @@ new class extends Component
 
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile')" wire:navigate>
-                    {{ __('Profile') }}
+                    {{ __('messages.profile') }}
                 </x-responsive-nav-link>
+
+                <form method="POST" action="{{ route('language.update') }}" class="px-4 py-2">
+                    @csrf
+                    <label for="mobile_locale" class="mb-1 block text-sm font-medium text-gray-700">{{ __('messages.language') }}</label>
+                    <select id="mobile_locale" name="locale" onchange="this.form.submit()" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('messages.swahili') }}</option>
+                        <option value="en" @selected(app()->getLocale() === 'en')>{{ __('messages.english') }}</option>
+                    </select>
+                </form>
 
                 <!-- Authentication -->
                 <button wire:click="logout" class="w-full text-start">
                     <x-responsive-nav-link>
-                        {{ __('Log Out') }}
+                        {{ __('messages.logout') }}
                     </x-responsive-nav-link>
                 </button>
             </div>

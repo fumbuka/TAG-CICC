@@ -74,6 +74,43 @@ class MembershipManagementTest extends TestCase
         $this->assertTrue($member->departments()->where('slug', 'maendeleo')->exists());
     }
 
+    public function test_member_can_be_edited_and_deleted(): void
+    {
+        $user = User::factory()->create();
+        $member = Member::create([
+            'first_name' => 'Neema',
+            'last_name' => 'Adam',
+            'gender' => 'female',
+            'date_of_birth' => '1990-01-01',
+            'phone_number' => '0654849299',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(MembersIndex::class)
+            ->call('edit', $member->id)
+            ->set('first_name', 'Upendo')
+            ->set('last_name', 'Adam')
+            ->set('gender', 'female')
+            ->set('date_of_birth', '1990-01-01')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertDispatched('member-updated');
+
+        $this->assertDatabaseHas('members', [
+            'id' => $member->id,
+            'first_name' => 'Upendo',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(MembersIndex::class)
+            ->call('delete', $member->id)
+            ->assertDispatched('member-deleted');
+
+        $this->assertSoftDeleted('members', [
+            'id' => $member->id,
+        ]);
+    }
+
     public function test_department_can_be_created(): void
     {
         $user = User::factory()->create();
@@ -89,6 +126,67 @@ class MembershipManagementTest extends TestCase
         $this->assertDatabaseHas('departments', [
             'name' => 'Media',
             'slug' => 'media',
+        ]);
+    }
+
+    public function test_department_can_be_edited_and_deleted_when_empty(): void
+    {
+        $user = User::factory()->create();
+        $department = Department::create([
+            'name' => 'Medai',
+            'slug' => 'medai',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(DepartmentsIndex::class)
+            ->call('edit', $department->id)
+            ->set('name', 'Media')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertDispatched('department-updated');
+
+        $this->assertDatabaseHas('departments', [
+            'id' => $department->id,
+            'name' => 'Media',
+            'slug' => 'media',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(DepartmentsIndex::class)
+            ->call('delete', $department->id)
+            ->assertDispatched('department-deleted');
+
+        $this->assertDatabaseMissing('departments', [
+            'id' => $department->id,
+        ]);
+    }
+
+    public function test_department_with_members_cannot_be_deleted(): void
+    {
+        $user = User::factory()->create();
+        $department = Department::create([
+            'name' => 'Media',
+            'slug' => 'media',
+        ]);
+        $member = Member::create([
+            'first_name' => 'Neema',
+            'last_name' => 'Adam',
+            'gender' => 'female',
+            'date_of_birth' => '1990-01-01',
+        ]);
+
+        $member->departments()->attach($department->id, [
+            'assignment_source' => 'manual',
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(DepartmentsIndex::class)
+            ->call('delete', $department->id)
+            ->assertHasErrors('delete');
+
+        $this->assertDatabaseHas('departments', [
+            'id' => $department->id,
         ]);
     }
 
@@ -108,5 +206,51 @@ class MembershipManagementTest extends TestCase
             'name' => 'Mbagala',
             'slug' => 'mbagala',
         ]);
+    }
+
+    public function test_zone_can_be_edited_and_deleted_when_empty(): void
+    {
+        $user = User::factory()->create();
+        $zone = Zone::create([
+            'name' => 'Mbagara',
+            'slug' => 'mbagara',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ZonesIndex::class)
+            ->call('edit', $zone->id)
+            ->set('name', 'Mbagala')
+            ->call('save')
+            ->assertHasNoErrors()
+            ->assertDispatched('zone-updated');
+
+        $this->assertDatabaseHas('zones', [
+            'id' => $zone->id,
+            'name' => 'Mbagala',
+            'slug' => 'mbagala',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(ZonesIndex::class)
+            ->call('delete', $zone->id)
+            ->assertDispatched('zone-deleted');
+
+        $this->assertDatabaseMissing('zones', [
+            'id' => $zone->id,
+        ]);
+    }
+
+    public function test_user_can_choose_a_language(): void
+    {
+        $user = User::factory()->create([
+            'preferred_locale' => 'sw',
+        ]);
+
+        $this->actingAs($user)
+            ->post('/language', ['locale' => 'en'])
+            ->assertRedirect();
+
+        $this->assertSame('en', $user->refresh()->preferred_locale);
+        $this->assertSame('en', session('locale'));
     }
 }

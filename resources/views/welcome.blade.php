@@ -19,19 +19,27 @@
                         <x-application-logo class="h-12 w-12" />
                         <div>
                             <p class="text-sm font-medium uppercase text-emerald-700">TAG-CICC</p>
-                            <p class="text-sm text-slate-500">Church Management System</p>
+                            <p class="text-sm text-slate-500">{{ __('messages.church_management_system') }}</p>
                         </div>
                     </div>
 
                     @if (Route::has('login'))
                         <nav class="flex items-center gap-3">
+                            <form method="POST" action="{{ route('language.update') }}">
+                                @csrf
+                                <label for="locale" class="sr-only">{{ __('messages.language') }}</label>
+                                <select id="locale" name="locale" onchange="this.form.submit()" class="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('messages.swahili') }}</option>
+                                    <option value="en" @selected(app()->getLocale() === 'en')>{{ __('messages.english') }}</option>
+                                </select>
+                            </form>
                             @auth
                                 <a href="{{ url('/dashboard') }}" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
-                                    Dashboard
+                                    {{ __('messages.dashboard') }}
                                 </a>
                             @else
                                 <a href="{{ route('login') }}" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
-                                    Login
+                                    {{ __('messages.login') }}
                                 </a>
                             @endauth
                         </nav>
@@ -42,28 +50,28 @@
                     <div>
                         <p class="mb-4 text-sm font-semibold uppercase text-emerald-700">www.tag-cicc.or.tz</p>
                         <h1 class="max-w-3xl text-4xl font-bold leading-tight text-slate-950 sm:text-5xl">
-                            Mfumo wa kusimamia washirika, idara, zones, ibada, fedha, na reports za TAG-CICC.
+                            {{ __('messages.welcome_title') }}
                         </h1>
                         <p class="mt-6 max-w-2xl text-base leading-7 text-slate-600">
-                            Awamu ya kwanza inalenga kusajili washirika, kupanga idara na zones, kuweka majukumu ya viongozi, na kujenga msingi wa reports na fedha.
+                            {{ __('messages.welcome_summary') }}
                         </p>
                     </div>
 
                     <div class="grid gap-3">
                         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                            <p class="text-sm font-semibold text-slate-500">Phase 1</p>
-                            <h2 class="mt-1 text-lg font-semibold text-slate-950">Membership Foundation</h2>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Members, departments, zones, roles, and Excel import foundation.</p>
+                            <p class="text-sm font-semibold text-slate-500">{{ __('messages.phase') }} 1</p>
+                            <h2 class="mt-1 text-lg font-semibold text-slate-950">{{ __('messages.membership_foundation') }}</h2>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">{{ __('messages.member_form_help') }}</p>
                         </div>
                         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                            <p class="text-sm font-semibold text-slate-500">Phase 2</p>
-                            <h2 class="mt-1 text-lg font-semibold text-slate-950">Services and Finance</h2>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Ibada, sadaka, zaka, michango, kapu, gunia, na reports za fedha.</p>
+                            <p class="text-sm font-semibold text-slate-500">{{ __('messages.phase') }} 2</p>
+                            <h2 class="mt-1 text-lg font-semibold text-slate-950">{{ __('messages.finance_foundation') }}</h2>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">{{ __('messages.finance_summary') }}</p>
                         </div>
                         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                            <p class="text-sm font-semibold text-slate-500">Phase 3</p>
-                            <h2 class="mt-1 text-lg font-semibold text-slate-950">Calendar Performance</h2>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Kalenda ya mwaka, utekelezaji wa idara, approvals, na performance percentage.</p>
+                            <p class="text-sm font-semibold text-slate-500">{{ __('messages.phase') }} 3</p>
+                            <h2 class="mt-1 text-lg font-semibold text-slate-950">{{ __('messages.calendar_foundation') }}</h2>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">{{ __('messages.calendar_summary') }}</p>
                         </div>
                     </div>
                 </div>

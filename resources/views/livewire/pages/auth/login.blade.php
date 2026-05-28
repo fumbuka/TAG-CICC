@@ -31,14 +31,14 @@ new #[Layout('layouts.guest')] class extends Component
     <form wire:submit="login">
         <!-- Email or Phone -->
         <div>
-            <x-input-label for="login" :value="__('Email or phone number')" />
+            <x-input-label for="login" :value="__('messages.email_or_phone')" />
             <x-text-input wire:model="form.login" id="login" class="block mt-1 w-full" type="text" name="login" required autofocus autocomplete="username" />
             <x-input-error :messages="$errors->get('form.login')" class="mt-2" />
         </div>
 
         <!-- Password -->
         <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+            <x-input-label for="password" :value="__('messages.password')" />
 
             <x-text-input wire:model="form.password" id="password" class="block mt-1 w-full"
                             type="password"
@@ -52,19 +52,19 @@ new #[Layout('layouts.guest')] class extends Component
         <div class="block mt-4">
             <label for="remember" class="inline-flex items-center">
                 <input wire:model="form.remember" id="remember" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
+                <span class="ms-2 text-sm text-gray-600">{{ __('messages.remember_me') }}</span>
             </label>
         </div>
 
         <div class="flex items-center justify-end mt-4">
             @if (Route::has('password.request'))
                 <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}" wire:navigate>
-                    {{ __('Forgot your password?') }}
+                    {{ __('messages.forgot_password') }}
                 </a>
             @endif
 
             <x-primary-button class="ms-3">
-                {{ __('Log in') }}
+                {{ __('messages.login') }}
             </x-primary-button>
         </div>
     </form>

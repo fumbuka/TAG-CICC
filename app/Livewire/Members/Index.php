@@ -19,6 +19,8 @@ class Index extends Component
 {
     use WithPagination;
 
+    public ?int $editingMemberId = null;
+
     public string $search = '';
 
     public string $first_name = '';
@@ -63,8 +65,10 @@ class Index extends Component
             'department_ids.*' => ['integer', Rule::exists('departments', 'id')],
         ]);
 
+        $wasEditing = $this->editingMemberId !== null;
+
         DB::transaction(function () use ($assignmentService, $validated): void {
-            $member = Member::create([
+            $attributes = [
                 'first_name' => $validated['first_name'],
                 'middle_name' => $validated['middle_name'] ?: null,
                 'last_name' => $validated['last_name'],
@@ -76,7 +80,16 @@ class Index extends Component
                 'zone_id' => $validated['zone_id'],
                 'joined_at' => now()->toDateString(),
                 'source' => 'member',
-            ]);
+            ];
+
+            $member = $this->editingMemberId
+                ? tap(Member::findOrFail($this->editingMemberId))->update($attributes)
+                : Member::create($attributes);
+
+            DB::table('member_departments')
+                ->where('member_id', $member->id)
+                ->whereIn('assignment_source', ['automatic', 'manual'])
+                ->delete();
 
             $assignmentService->assignDefaultDepartments($member, Auth::user());
 
@@ -94,20 +107,42 @@ class Index extends Component
                 });
         });
 
-        $this->reset([
-            'first_name',
-            'middle_name',
-            'last_name',
-            'gender',
-            'date_of_birth',
-            'phone_number',
-            'email',
-            'residential_area',
-            'zone_id',
-            'department_ids',
-        ]);
+        $this->resetForm();
 
-        $this->dispatch('member-created');
+        $this->dispatch($wasEditing ? 'member-updated' : 'member-created');
+    }
+
+    public function edit(int $memberId): void
+    {
+        $member = Member::with('departments')->findOrFail($memberId);
+
+        $this->editingMemberId = $member->id;
+        $this->first_name = $member->first_name;
+        $this->middle_name = $member->middle_name ?? '';
+        $this->last_name = $member->last_name;
+        $this->gender = $member->gender;
+        $this->date_of_birth = $member->date_of_birth?->toDateString() ?? '';
+        $this->phone_number = $member->phone_number ?? '';
+        $this->email = $member->email ?? '';
+        $this->residential_area = $member->residential_area ?? '';
+        $this->zone_id = $member->zone_id;
+        $this->department_ids = $member->departments->pluck('id')->all();
+    }
+
+    public function cancelEdit(): void
+    {
+        $this->resetForm();
+    }
+
+    public function delete(int $memberId): void
+    {
+        Member::findOrFail($memberId)->delete();
+
+        if ($this->editingMemberId === $memberId) {
+            $this->resetForm();
+        }
+
+        $this->dispatch('member-deleted');
     }
 
     public function render(): View
@@ -132,5 +167,24 @@ class Index extends Component
             'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
+    }
+
+    private function resetForm(): void
+    {
+        $this->reset([
+            'editingMemberId',
+            'first_name',
+            'middle_name',
+            'last_name',
+            'gender',
+            'date_of_birth',
+            'phone_number',
+            'email',
+            'residential_area',
+            'zone_id',
+            'department_ids',
+        ]);
+
+        $this->resetErrorBag();
     }
 }
