@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BulkImportTemplateController;
+use App\Http\Controllers\DashboardController;
 use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Leadership\Index as LeadershipIndex;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
 
-Route::view('dashboard', 'dashboard')
+Route::get('dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
