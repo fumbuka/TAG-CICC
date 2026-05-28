@@ -24,12 +24,12 @@ class DashboardTest extends TestCase
     {
         $user = User::factory()->create();
 
-        collect(['users.manage', 'leadership.manage'])->each(fn (string $permission) => Permission::create([
+        collect(['users.manage', 'leadership.manage', 'calendar.manage'])->each(fn (string $permission) => Permission::create([
             'name' => $permission,
             'guard_name' => 'web',
         ]));
 
-        $user->givePermissionTo(['users.manage', 'leadership.manage']);
+        $user->givePermissionTo(['users.manage', 'leadership.manage', 'calendar.manage']);
 
         Member::create([
             'user_id' => $user->id,

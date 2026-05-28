@@ -55,7 +55,7 @@ class BulkImportTemplateService
                 'sheet' => $swahili ? 'Idara' : 'Departments',
                 'filename' => 'tag-cicc-departments-template.xlsx',
                 'headers' => $swahili
-                    ? ['jina_la_idara', 'maelezo', 'rule_ya_umri', 'umri_wa_chini', 'umri_wa_juu', 'jinsia']
+                    ? ['jina_la_idara', 'maelezo', 'inategemea_umri', 'umri_wa_chini', 'umri_wa_juu', 'jinsia']
                     : ['name', 'description', 'is_age_based', 'minimum_age', 'maximum_age', 'gender_rule'],
                 'sample' => $swahili
                     ? ['Media', 'Idara ya matangazo na mawasiliano', 'hapana', '', '', '']

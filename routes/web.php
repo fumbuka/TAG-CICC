@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BulkImportTemplateController;
 use App\Http\Controllers\DashboardController;
+use App\Livewire\Calendar\Index as CalendarIndex;
 use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Leadership\Index as LeadershipIndex;
@@ -57,6 +58,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('zones', ZonesIndex::class)->name('zones.index');
     Route::get('services', ServicesIndex::class)->name('services.index');
     Route::get('finance', FinanceIndex::class)->name('finance.index');
+    Route::get('calendar', CalendarIndex::class)
+        ->middleware('permission:calendar.manage')
+        ->name('calendar.index');
     Route::get('leadership', LeadershipIndex::class)
         ->middleware('permission:leadership.manage')
         ->name('leadership.index');

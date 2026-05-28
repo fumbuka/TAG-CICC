@@ -60,9 +60,15 @@
                             <p class="text-sm font-medium text-gray-500">{{ __('messages.calendar') }}</p>
                             <h3 class="mt-2 text-2xl font-semibold text-gray-950">{{ $today->translatedFormat('d F Y') }}</h3>
                         </div>
-                        <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            {{ __('messages.today') }}
-                        </span>
+                        @can('calendar.manage')
+                            <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                                {{ __('messages.manage_calendar') }}
+                            </a>
+                        @else
+                            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                {{ __('messages.today') }}
+                            </span>
+                        @endcan
                     </div>
 
                     <div class="mt-5">
@@ -90,8 +96,8 @@
                     </div>
                 </section>
 
-                @can('leadership.manage')
-                    <a href="{{ route('leadership.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
+                @can('calendar.manage')
+                    <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
                         <p class="text-sm font-medium text-gray-500">{{ __('messages.weekly_leadership_duty') }}</p>
                         <div class="mt-5 space-y-4">
                             <div>

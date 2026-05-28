@@ -123,7 +123,7 @@ class Index extends Component
                 'name' => $name,
                 'slug' => Str::slug($name),
                 'description' => trim((string) ($row['description'] ?? $row['maelezo'] ?? '')) ?: null,
-                'is_age_based' => $this->normalizeBoolean($row['is_age_based'] ?? $row['age_rule'] ?? $row['rule_ya_umri'] ?? false),
+                'is_age_based' => $this->normalizeBoolean($row['is_age_based'] ?? $row['age_rule'] ?? $row['inategemea_umri'] ?? $row['rule_ya_umri'] ?? false),
                 'minimum_age' => $this->normalizeInteger($row['minimum_age'] ?? $row['umri_wa_chini'] ?? null),
                 'maximum_age' => $this->normalizeInteger($row['maximum_age'] ?? $row['umri_wa_juu'] ?? null),
                 'gender_rule' => $this->normalizeGender($row['gender_rule'] ?? $row['jinsia'] ?? null),
