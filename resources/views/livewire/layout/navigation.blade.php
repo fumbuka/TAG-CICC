@@ -33,6 +33,15 @@ new class extends Component
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    <x-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
+                        {{ __('Members') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
+                        {{ __('Departments') }}
+                    </x-nav-link>
+                    <x-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
+                        {{ __('Zones') }}
+                    </x-nav-link>
                 </div>
             </div>
 
@@ -83,6 +92,15 @@ new class extends Component
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                 {{ __('Dashboard') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
+                {{ __('Members') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
+                {{ __('Departments') }}
+            </x-responsive-nav-link>
+            <x-responsive-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
+                {{ __('Zones') }}
             </x-responsive-nav-link>
         </div>
 
