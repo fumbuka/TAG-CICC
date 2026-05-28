@@ -5,6 +5,7 @@ use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Leadership\Index as LeadershipIndex;
 use App\Livewire\Members\Index as MembersIndex;
 use App\Livewire\Services\Index as ServicesIndex;
+use App\Livewire\Users\Index as UsersIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -54,6 +55,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('leadership', LeadershipIndex::class)
         ->middleware('permission:leadership.manage')
         ->name('leadership.index');
+    Route::get('users', UsersIndex::class)
+        ->middleware('permission:users.manage')
+        ->name('users.index');
 });
 
 require __DIR__.'/auth.php';

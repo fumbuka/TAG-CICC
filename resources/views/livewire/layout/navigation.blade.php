@@ -53,6 +53,11 @@ new class extends Component
                             {{ __('messages.leadership') }}
                         </x-nav-link>
                     @endcan
+                    @can('users.manage')
+                        <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')" wire:navigate>
+                            {{ __('messages.users') }}
+                        </x-nav-link>
+                    @endcan
                 </div>
             </div>
 
@@ -131,6 +136,11 @@ new class extends Component
             @can('leadership.manage')
                 <x-responsive-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
                     {{ __('messages.leadership') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('users.manage')
+                <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')" wire:navigate>
+                    {{ __('messages.users') }}
                 </x-responsive-nav-link>
             @endcan
         </div>

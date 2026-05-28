@@ -45,6 +45,14 @@
                         <p class="mt-2 text-sm text-gray-600">{{ __('messages.leadership_help') }}</p>
                     </a>
                 @endcan
+
+                @can('users.manage')
+                    <a href="{{ route('users.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
+                        <p class="text-sm font-medium text-gray-500">{{ __('messages.users') }}</p>
+                        <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.users') }}</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ __('messages.users_help') }}</p>
+                    </a>
+                @endcan
             </div>
 
             <div class="mt-4">

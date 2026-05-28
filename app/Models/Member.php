@@ -56,6 +56,11 @@ class Member extends Model
         return $this->belongsTo(Zone::class);
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function leadershipAssignments(): HasMany
     {
         return $this->hasMany(MemberLeadershipAssignment::class);

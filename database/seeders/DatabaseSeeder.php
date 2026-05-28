@@ -73,6 +73,7 @@ class DatabaseSeeder extends Seeder
                 'calendar.manage',
                 'leadership.manage',
                 'reports.view',
+                'users.manage',
             ],
             'Mhasibu wa Kanisa' => [
                 'dashboard.view',
