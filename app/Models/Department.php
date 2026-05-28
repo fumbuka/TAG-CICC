@@ -25,6 +25,11 @@ class Department extends Model
         return $this->hasMany(Service::class);
     }
 
+    public function serviceRoutines(): HasMany
+    {
+        return $this->hasMany(ServiceRoutine::class);
+    }
+
     public function financialTransactions(): HasMany
     {
         return $this->hasMany(FinancialTransaction::class);

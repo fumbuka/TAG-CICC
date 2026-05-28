@@ -34,23 +34,26 @@
                         <x-input-error :messages="$errors->get('title')" class="mt-2" />
                     </div>
 
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <x-input-label for="service_type_id" :value="__('messages.service_type')" />
-                            <select wire:model="service_type_id" id="service_type_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">{{ __('messages.select_service_type') }}</option>
-                                @foreach ($serviceTypes as $serviceType)
-                                    <option value="{{ $serviceType->id }}">{{ $serviceType->name }}</option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('service_type_id')" class="mt-2" />
-                        </div>
+                    <div>
+                        <x-input-label for="service_routine_id" :value="__('messages.service_routine')" />
+                        <select wire:model.live="service_routine_id" id="service_routine_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">{{ __('messages.select_service_routine') }}</option>
+                            @foreach ($serviceRoutines as $routine)
+                                <option value="{{ $routine->id }}">
+                                    {{ $routine->title }} - {{ __('messages.day_'.$routine->day_of_week) }}
+                                    @if ($routine->starts_at)
+                                        {{ substr((string) $routine->starts_at, 0, 5) }}
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('service_routine_id')" class="mt-2" />
 
-                        <div>
-                            <x-input-label for="service_date" :value="__('messages.service_date')" />
-                            <x-text-input wire:model="service_date" id="service_date" class="mt-1 block w-full" type="date" />
-                            <x-input-error :messages="$errors->get('service_date')" class="mt-2" />
-                        </div>
+                        @if ($selectedRoutineNextDate)
+                            <p class="mt-2 text-xs font-medium text-emerald-700">
+                                {{ __('messages.next_service_date') }}: {{ $selectedRoutineNextDate }}
+                            </p>
+                        @endif
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -151,7 +154,7 @@
                                 <tr>
                                     <td class="px-5 py-4">
                                         <div class="font-medium text-gray-950">{{ $service->title }}</div>
-                                        <div class="text-xs text-gray-500">{{ $service->serviceType?->name ?: '-' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $service->serviceRoutine?->title ?: $service->serviceType?->name ?: '-' }}</div>
                                     </td>
                                     <td class="px-5 py-4 text-gray-600">
                                         <div>{{ $service->service_date?->format('Y-m-d') }}</div>

@@ -10,6 +10,7 @@
             x-on:department-created.window="message = '{{ __('messages.department_created') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:department-updated.window="message = '{{ __('messages.department_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:department-deleted.window="message = '{{ __('messages.department_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:departments-imported.window="message = '{{ __('messages.departments_imported') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -134,5 +135,21 @@
                 </div>
             </section>
         </div>
+
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.bulk_import_departments') }}</h2>
+            <p class="mt-1 text-sm text-gray-600">{{ __('messages.departments_import_help') }}</p>
+
+            <form wire:submit="import" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="flex-1">
+                    <x-input-label for="departmentImport" :value="__('messages.import_file')" />
+                    <input wire:model="departmentImport" id="departmentImport" type="file" accept=".csv,.txt,.xlsx,.ods" class="mt-1 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100" />
+                    <x-input-error :messages="$errors->get('departmentImport')" class="mt-2" />
+                </div>
+                <x-primary-button wire:loading.attr="disabled" wire:target="departmentImport,import">
+                    {{ __('messages.upload') }}
+                </x-primary-button>
+            </form>
+        </section>
     </div>
 </div>

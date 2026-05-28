@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -53,6 +54,11 @@ class Member extends Model
     public function zone(): BelongsTo
     {
         return $this->belongsTo(Zone::class);
+    }
+
+    public function leadershipAssignments(): HasMany
+    {
+        return $this->hasMany(MemberLeadershipAssignment::class);
     }
 
     public function age(): ?int

@@ -6,17 +6,24 @@ use App\Models\Department;
 use App\Models\Member;
 use App\Models\Zone;
 use App\Services\MemberDepartmentAssignmentService;
+use App\Services\SpreadsheetImportService;
+use DateTimeInterface;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use WithFileUploads;
     use WithPagination;
 
     public ?int $editingMemberId = null;
@@ -43,6 +50,8 @@ class Index extends Component
 
     /** @var array<int> */
     public array $department_ids = [];
+
+    public $memberImport = null;
 
     public function updatedSearch(): void
     {
@@ -145,6 +154,71 @@ class Index extends Component
         $this->dispatch('member-deleted');
     }
 
+    public function import(SpreadsheetImportService $importer, MemberDepartmentAssignmentService $assignmentService): void
+    {
+        $this->validate([
+            'memberImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
+        ]);
+
+        $imported = 0;
+
+        DB::transaction(function () use ($assignmentService, $importer, &$imported): void {
+            foreach ($importer->rows($this->memberImport) as $row) {
+                $attributes = [
+                    'first_name' => trim((string) ($row['first_name'] ?? $row['jina_la_kwanza'] ?? '')),
+                    'middle_name' => trim((string) ($row['middle_name'] ?? $row['jina_la_kati'] ?? '')) ?: null,
+                    'last_name' => trim((string) ($row['last_name'] ?? $row['jina_la_mwisho'] ?? '')),
+                    'gender' => $this->normalizeGender($row['gender'] ?? $row['jinsia'] ?? ''),
+                    'date_of_birth' => $this->normalizeDate($row['date_of_birth'] ?? $row['tarehe_ya_kuzaliwa'] ?? null),
+                    'phone_number' => trim((string) ($row['phone_number'] ?? $row['phone'] ?? $row['simu'] ?? '')) ?: null,
+                    'email' => trim((string) ($row['email'] ?? $row['barua_pepe'] ?? '')) ?: null,
+                    'residential_area' => trim((string) ($row['residential_area'] ?? $row['eneo'] ?? $row['anapoishi'] ?? '')) ?: null,
+                    'joined_at' => now()->toDateString(),
+                    'source' => 'member',
+                ];
+
+                $zoneName = trim((string) ($row['zone'] ?? $row['kanda'] ?? ''));
+                $attributes['zone_id'] = $zoneName !== '' ? $this->findOrCreateZone($zoneName)->id : null;
+
+                Validator::make($attributes, [
+                    'first_name' => ['required', 'string', 'max:255'],
+                    'last_name' => ['required', 'string', 'max:255'],
+                    'gender' => ['required', Rule::in(['male', 'female'])],
+                    'date_of_birth' => ['required', 'date', 'before_or_equal:today'],
+                    'phone_number' => ['nullable', 'string', 'max:20'],
+                    'email' => ['nullable', 'email', 'max:255'],
+                ])->validate();
+
+                $member = Member::create($attributes);
+
+                $assignmentService->assignDefaultDepartments($member, Auth::user());
+
+                collect($this->splitNames((string) ($row['departments'] ?? $row['idara'] ?? '')))
+                    ->each(function (string $departmentName) use ($member): void {
+                        $department = Department::firstOrCreate(
+                            ['slug' => Str::slug($departmentName)],
+                            ['name' => $departmentName, 'is_active' => true],
+                        );
+
+                        $member->departments()->syncWithoutDetaching([
+                            $department->id => [
+                                'assigned_by_user_id' => Auth::id(),
+                                'assignment_source' => 'manual',
+                                'started_at' => now()->toDateString(),
+                                'is_active' => true,
+                            ],
+                        ]);
+                    });
+
+                $imported++;
+            }
+        });
+
+        $this->memberImport = null;
+
+        $this->dispatch('members-imported', count: $imported);
+    }
+
     public function render(): View
     {
         $members = Member::query()
@@ -186,5 +260,47 @@ class Index extends Component
         ]);
 
         $this->resetErrorBag();
+    }
+
+    private function normalizeGender(mixed $gender): string
+    {
+        $value = Str::lower(trim((string) $gender));
+
+        return match ($value) {
+            'female', 'f', 'mwanamke', 'ke', 'woman' => 'female',
+            'male', 'm', 'mwanaume', 'me', 'man' => 'male',
+            default => $value,
+        };
+    }
+
+    private function normalizeDate(mixed $value): ?string
+    {
+        if ($value instanceof DateTimeInterface) {
+            return Carbon::parse($value->format('Y-m-d'))->toDateString();
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : Carbon::parse($value)->toDateString();
+    }
+
+    private function findOrCreateZone(string $zoneName): Zone
+    {
+        return Zone::firstOrCreate(
+            ['slug' => Str::slug($zoneName)],
+            ['name' => $zoneName, 'is_active' => true],
+        );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function splitNames(string $value): array
+    {
+        return collect(preg_split('/[,;|]/', $value) ?: [])
+            ->map(fn (string $name): string => trim($name))
+            ->filter()
+            ->values()
+            ->all();
     }
 }

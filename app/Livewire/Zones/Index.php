@@ -3,20 +3,27 @@
 namespace App\Livewire\Zones;
 
 use App\Models\Zone;
+use App\Services\SpreadsheetImportService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use WithFileUploads;
+
     public ?int $editingZoneId = null;
 
     public string $name = '';
 
     public string $description = '';
+
+    public $zoneImport = null;
 
     public function save(): void
     {
@@ -79,6 +86,41 @@ class Index extends Component
         $zone->update([
             'is_active' => ! $zone->is_active,
         ]);
+    }
+
+    public function import(SpreadsheetImportService $importer): void
+    {
+        $this->validate([
+            'zoneImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
+        ]);
+
+        $imported = 0;
+
+        foreach ($importer->rows($this->zoneImport) as $row) {
+            $name = trim((string) ($row['name'] ?? $row['zone_name'] ?? $row['jina'] ?? $row['jina_la_kanda'] ?? ''));
+
+            $attributes = [
+                'name' => $name,
+                'slug' => Str::slug($name),
+                'description' => trim((string) ($row['description'] ?? $row['maelezo'] ?? '')) ?: null,
+                'is_active' => true,
+            ];
+
+            Validator::make($attributes, [
+                'name' => ['required', 'string', 'max:255'],
+            ])->validate();
+
+            Zone::updateOrCreate(
+                ['slug' => $attributes['slug']],
+                $attributes,
+            );
+
+            $imported++;
+        }
+
+        $this->zoneImport = null;
+
+        $this->dispatch('zones-imported', count: $imported);
     }
 
     public function render(): View

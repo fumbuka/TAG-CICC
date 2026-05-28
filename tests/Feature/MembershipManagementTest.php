@@ -10,6 +10,7 @@ use App\Models\Member;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -111,6 +112,34 @@ class MembershipManagementTest extends TestCase
         ]);
     }
 
+    public function test_members_can_be_imported_in_bulk(): void
+    {
+        $user = User::factory()->create();
+
+        Department::create([
+            'name' => 'Wamama',
+            'slug' => 'wamama',
+        ]);
+
+        $file = UploadedFile::fake()->createWithContent(
+            'members.csv',
+            "first_name,last_name,gender,date_of_birth,phone_number,zone,departments\nNeema,Adam,female,1990-01-01,0654849299,Changombe,Maendeleo\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(MembersIndex::class)
+            ->set('memberImport', $file)
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertDispatched('members-imported');
+
+        $member = Member::query()->where('phone_number', '0654849299')->firstOrFail();
+
+        $this->assertSame('Changombe', $member->zone?->name);
+        $this->assertTrue($member->departments()->where('slug', 'wamama')->exists());
+        $this->assertTrue($member->departments()->where('slug', 'maendeleo')->exists());
+    }
+
     public function test_department_can_be_created(): void
     {
         $user = User::factory()->create();
@@ -190,6 +219,28 @@ class MembershipManagementTest extends TestCase
         ]);
     }
 
+    public function test_departments_can_be_imported_in_bulk(): void
+    {
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->createWithContent(
+            'departments.csv',
+            "name,description,is_age_based,minimum_age,maximum_age,gender_rule\nMedia,Idara ya matangazo,no,,,\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(DepartmentsIndex::class)
+            ->set('departmentImport', $file)
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertDispatched('departments-imported');
+
+        $this->assertDatabaseHas('departments', [
+            'name' => 'Media',
+            'slug' => 'media',
+        ]);
+    }
+
     public function test_zone_can_be_created(): void
     {
         $user = User::factory()->create();
@@ -237,6 +288,32 @@ class MembershipManagementTest extends TestCase
 
         $this->assertDatabaseMissing('zones', [
             'id' => $zone->id,
+        ]);
+    }
+
+    public function test_zones_can_be_imported_in_bulk(): void
+    {
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->createWithContent(
+            'zones.csv',
+            "name,description\nMbagala,Washirika wa Mbagala\nKongowe,Washirika wa Kongowe\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(ZonesIndex::class)
+            ->set('zoneImport', $file)
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertDispatched('zones-imported');
+
+        $this->assertDatabaseHas('zones', [
+            'name' => 'Mbagala',
+            'slug' => 'mbagala',
+        ]);
+        $this->assertDatabaseHas('zones', [
+            'name' => 'Kongowe',
+            'slug' => 'kongowe',
         ]);
     }
 

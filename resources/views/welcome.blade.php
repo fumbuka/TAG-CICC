@@ -37,6 +37,12 @@
                                 <a href="{{ url('/dashboard') }}" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
                                     {{ __('messages.dashboard') }}
                                 </a>
+                                <form method="POST" action="{{ route('logout') }}">
+                                    @csrf
+                                    <button type="submit" class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+                                        {{ __('messages.logout') }}
+                                    </button>
+                                </form>
                             @else
                                 <a href="{{ route('login') }}" class="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700">
                                     {{ __('messages.login') }}

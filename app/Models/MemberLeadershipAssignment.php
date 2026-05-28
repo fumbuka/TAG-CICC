@@ -6,34 +6,30 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'service_type_id',
-    'service_routine_id',
+    'member_id',
+    'leadership_title_id',
     'department_id',
     'zone_id',
-    'title',
-    'service_date',
-    'starts_at',
-    'ends_at',
-    'speaker',
-    'topic',
-    'attendance_count',
+    'assigned_by_user_id',
+    'started_at',
+    'ended_at',
+    'is_active',
     'notes',
 ])]
-class Service extends Model
+class MemberLeadershipAssignment extends Model
 {
     use HasFactory;
 
-    public function serviceType(): BelongsTo
+    public function member(): BelongsTo
     {
-        return $this->belongsTo(ServiceType::class);
+        return $this->belongsTo(Member::class);
     }
 
-    public function serviceRoutine(): BelongsTo
+    public function leadershipTitle(): BelongsTo
     {
-        return $this->belongsTo(ServiceRoutine::class);
+        return $this->belongsTo(LeadershipTitle::class);
     }
 
     public function department(): BelongsTo
@@ -46,15 +42,17 @@ class Service extends Model
         return $this->belongsTo(Zone::class);
     }
 
-    public function financialTransactions(): HasMany
+    public function assignedBy(): BelongsTo
     {
-        return $this->hasMany(FinancialTransaction::class);
+        return $this->belongsTo(User::class, 'assigned_by_user_id');
     }
 
     protected function casts(): array
     {
         return [
-            'service_date' => 'date',
+            'started_at' => 'date',
+            'ended_at' => 'date',
+            'is_active' => 'boolean',
         ];
     }
 }

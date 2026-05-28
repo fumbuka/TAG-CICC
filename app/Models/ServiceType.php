@@ -16,4 +16,9 @@ class ServiceType extends Model
     {
         return $this->hasMany(Service::class);
     }
+
+    public function serviceRoutines(): HasMany
+    {
+        return $this->hasMany(ServiceRoutine::class);
+    }
 }

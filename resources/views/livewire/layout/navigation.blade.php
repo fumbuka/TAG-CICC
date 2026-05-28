@@ -48,6 +48,11 @@ new class extends Component
                     <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
                         {{ __('messages.finance') }}
                     </x-nav-link>
+                    @can('leadership.manage')
+                        <x-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
+                            {{ __('messages.leadership') }}
+                        </x-nav-link>
+                    @endcan
                 </div>
             </div>
 
@@ -123,6 +128,11 @@ new class extends Component
             <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
                 {{ __('messages.finance') }}
             </x-responsive-nav-link>
+            @can('leadership.manage')
+                <x-responsive-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
+                    {{ __('messages.leadership') }}
+                </x-responsive-nav-link>
+            @endcan
         </div>
 
         <!-- Responsive Settings Options -->

@@ -4,9 +4,11 @@ namespace App\Livewire\Services;
 
 use App\Models\Department;
 use App\Models\Service;
+use App\Models\ServiceRoutine;
 use App\Models\ServiceType;
 use App\Models\Zone;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -20,6 +22,8 @@ class Index extends Component
     public ?int $editingServiceId = null;
 
     public string $search = '';
+
+    public ?int $service_routine_id = null;
 
     public ?int $service_type_id = null;
 
@@ -48,14 +52,35 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatedServiceRoutineId(): void
+    {
+        if (! $this->service_routine_id) {
+            return;
+        }
+
+        $routine = ServiceRoutine::find($this->service_routine_id);
+
+        if (! $routine) {
+            return;
+        }
+
+        $this->service_type_id = $routine->service_type_id;
+        $this->department_id = $routine->department_id;
+        $this->zone_id = $routine->zone_id;
+        $this->title = $routine->title;
+        $this->starts_at = $routine->starts_at ? substr((string) $routine->starts_at, 0, 5) : '';
+        $this->ends_at = $routine->ends_at ? substr((string) $routine->ends_at, 0, 5) : '';
+        $this->speaker = $routine->speaker ?? '';
+        $this->topic = $routine->topic ?? '';
+    }
+
     public function save(): void
     {
         $validated = $this->validate([
-            'service_type_id' => ['required', 'integer', Rule::exists('service_types', 'id')],
+            'service_routine_id' => ['required', 'integer', Rule::exists('service_routines', 'id')],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
             'zone_id' => ['nullable', 'integer', Rule::exists('zones', 'id')],
             'title' => ['required', 'string', 'max:255'],
-            'service_date' => ['required', 'date'],
             'starts_at' => ['nullable', 'date_format:H:i'],
             'ends_at' => ['nullable', 'date_format:H:i', 'after_or_equal:starts_at'],
             'speaker' => ['nullable', 'string', 'max:255'],
@@ -65,13 +90,18 @@ class Index extends Component
         ]);
 
         $wasEditing = $this->editingServiceId !== null;
+        $routine = ServiceRoutine::findOrFail($validated['service_routine_id']);
+        $service = $this->editingServiceId ? Service::findOrFail($this->editingServiceId) : null;
 
         $attributes = [
-            'service_type_id' => $validated['service_type_id'],
+            'service_type_id' => $routine->service_type_id,
+            'service_routine_id' => $routine->id,
             'department_id' => $validated['department_id'],
             'zone_id' => $validated['zone_id'],
             'title' => $validated['title'],
-            'service_date' => $validated['service_date'],
+            'service_date' => $service?->service_routine_id === $routine->id
+                ? $service->service_date
+                : $this->nextDateForRoutine($routine),
             'starts_at' => $validated['starts_at'] ?: null,
             'ends_at' => $validated['ends_at'] ?: null,
             'speaker' => $validated['speaker'] ?: null,
@@ -80,8 +110,8 @@ class Index extends Component
             'notes' => $validated['notes'] ?: null,
         ];
 
-        $this->editingServiceId
-            ? Service::findOrFail($this->editingServiceId)->update($attributes)
+        $service
+            ? $service->update($attributes)
             : Service::create($attributes);
 
         $this->resetForm();
@@ -94,6 +124,7 @@ class Index extends Component
         $service = Service::findOrFail($serviceId);
 
         $this->editingServiceId = $service->id;
+        $this->service_routine_id = $service->service_routine_id;
         $this->service_type_id = $service->service_type_id;
         $this->department_id = $service->department_id;
         $this->zone_id = $service->zone_id;
@@ -136,7 +167,7 @@ class Index extends Component
     public function render(): View
     {
         $services = Service::query()
-            ->with(['serviceType', 'department', 'zone'])
+            ->with(['serviceType', 'serviceRoutine', 'department', 'zone'])
             ->withSum('financialTransactions', 'amount')
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($query): void {
@@ -153,9 +184,17 @@ class Index extends Component
 
         return view('livewire.services.index', [
             'services' => $services,
+            'serviceRoutines' => ServiceRoutine::query()
+                ->with(['serviceType', 'department', 'zone'])
+                ->where('is_active', true)
+                ->orderBy('day_of_week')
+                ->orderBy('starts_at')
+                ->orderBy('title')
+                ->get(),
             'serviceTypes' => ServiceType::query()->where('is_active', true)->orderBy('name')->get(),
             'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
+            'selectedRoutineNextDate' => $this->selectedRoutineNextDate(),
         ]);
     }
 
@@ -163,6 +202,7 @@ class Index extends Component
     {
         $this->reset([
             'editingServiceId',
+            'service_routine_id',
             'service_type_id',
             'department_id',
             'zone_id',
@@ -177,5 +217,24 @@ class Index extends Component
         ]);
 
         $this->resetErrorBag();
+    }
+
+    private function selectedRoutineNextDate(): ?string
+    {
+        if (! $this->service_routine_id) {
+            return null;
+        }
+
+        $routine = ServiceRoutine::find($this->service_routine_id);
+
+        return $routine ? $this->nextDateForRoutine($routine) : null;
+    }
+
+    private function nextDateForRoutine(ServiceRoutine $routine): string
+    {
+        $today = Carbon::today();
+        $daysToAdd = ($routine->day_of_week - $today->dayOfWeek + 7) % 7;
+
+        return $today->copy()->addDays($daysToAdd)->toDateString();
     }
 }

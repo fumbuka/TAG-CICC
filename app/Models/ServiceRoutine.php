@@ -10,30 +10,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'service_type_id',
-    'service_routine_id',
     'department_id',
     'zone_id',
     'title',
-    'service_date',
+    'day_of_week',
     'starts_at',
     'ends_at',
     'speaker',
     'topic',
-    'attendance_count',
-    'notes',
+    'is_active',
 ])]
-class Service extends Model
+class ServiceRoutine extends Model
 {
     use HasFactory;
 
     public function serviceType(): BelongsTo
     {
         return $this->belongsTo(ServiceType::class);
-    }
-
-    public function serviceRoutine(): BelongsTo
-    {
-        return $this->belongsTo(ServiceRoutine::class);
     }
 
     public function department(): BelongsTo
@@ -46,15 +39,16 @@ class Service extends Model
         return $this->belongsTo(Zone::class);
     }
 
-    public function financialTransactions(): HasMany
+    public function services(): HasMany
     {
-        return $this->hasMany(FinancialTransaction::class);
+        return $this->hasMany(Service::class);
     }
 
     protected function casts(): array
     {
         return [
-            'service_date' => 'date',
+            'day_of_week' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 }

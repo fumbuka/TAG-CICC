@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\FinancialTransaction;
 use App\Models\IncomeCategory;
 use App\Models\Service;
+use App\Models\ServiceRoutine;
 use App\Models\ServiceType;
 use App\Models\User;
 use App\Models\Zone;
@@ -44,14 +45,22 @@ class ServicesFinanceTest extends TestCase
             'name' => 'Changombe',
             'slug' => 'changombe',
         ]);
+        $routine = ServiceRoutine::create([
+            'service_type_id' => $serviceType->id,
+            'department_id' => $department->id,
+            'zone_id' => $zone->id,
+            'title' => 'Ibada ya maombi',
+            'day_of_week' => now()->dayOfWeek,
+            'starts_at' => '18:00',
+            'ends_at' => '20:00',
+        ]);
 
         Livewire::actingAs($user)
             ->test(ServicesIndex::class)
-            ->set('service_type_id', $serviceType->id)
+            ->set('service_routine_id', $routine->id)
             ->set('department_id', $department->id)
             ->set('zone_id', $zone->id)
             ->set('title', 'Ibada ya maombi')
-            ->set('service_date', '2026-05-28')
             ->set('starts_at', '18:00')
             ->set('ends_at', '20:00')
             ->set('speaker', 'Mchungaji Kiongozi')
@@ -74,6 +83,7 @@ class ServicesFinanceTest extends TestCase
         $this->assertDatabaseHas('services', [
             'id' => $service->id,
             'title' => 'Ibada ya maombi na sifa',
+            'service_routine_id' => $routine->id,
         ]);
 
         Livewire::actingAs($user)

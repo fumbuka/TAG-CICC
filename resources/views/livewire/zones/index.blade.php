@@ -1,7 +1,7 @@
 <div class="py-8">
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
         <div>
-            <p class="text-sm font-medium text-emerald-700">{{ __('messages.departments') }}</p>
+            <p class="text-sm font-medium text-emerald-700">{{ __('messages.zones') }}</p>
             <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.zones') }}</h1>
             <p class="mt-1 text-sm text-gray-600">{{ __('messages.zone_help') }}</p>
         </div>
@@ -10,6 +10,7 @@
             x-on:zone-created.window="message = '{{ __('messages.zone_created') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:zone-updated.window="message = '{{ __('messages.zone_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:zone-deleted.window="message = '{{ __('messages.zone_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:zones-imported.window="message = '{{ __('messages.zones_imported') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -96,5 +97,21 @@
                 </div>
             </section>
         </div>
+
+        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.bulk_import_zones') }}</h2>
+            <p class="mt-1 text-sm text-gray-600">{{ __('messages.zones_import_help') }}</p>
+
+            <form wire:submit="import" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="flex-1">
+                    <x-input-label for="zoneImport" :value="__('messages.import_file')" />
+                    <input wire:model="zoneImport" id="zoneImport" type="file" accept=".csv,.txt,.xlsx,.ods" class="mt-1 block w-full text-sm text-gray-700 file:me-4 file:rounded-md file:border-0 file:bg-emerald-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100" />
+                    <x-input-error :messages="$errors->get('zoneImport')" class="mt-2" />
+                </div>
+                <x-primary-button wire:loading.attr="disabled" wire:target="zoneImport,import">
+                    {{ __('messages.upload') }}
+                </x-primary-button>
+            </form>
+        </section>
     </div>
 </div>
