@@ -7,6 +7,7 @@ use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Leadership\Index as LeadershipIndex;
 use App\Livewire\Members\Index as MembersIndex;
+use App\Livewire\Reports\Index as ReportsIndex;
 use App\Livewire\Services\Index as ServicesIndex;
 use App\Livewire\Users\Index as UsersIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
@@ -61,6 +62,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('calendar', CalendarIndex::class)
         ->middleware('permission:calendar.manage|calendar.submit')
         ->name('calendar.index');
+    Route::get('reports', ReportsIndex::class)
+        ->middleware('permission:reports.view|reports.submit|reports.approve')
+        ->name('reports.index');
     Route::get('leadership', LeadershipIndex::class)
         ->middleware('permission:leadership.manage')
         ->name('leadership.index');

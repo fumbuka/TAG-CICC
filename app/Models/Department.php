@@ -34,4 +34,14 @@ class Department extends Model
     {
         return $this->hasMany(FinancialTransaction::class);
     }
+
+    public function calendarEvents(): HasMany
+    {
+        return $this->hasMany(CalendarEvent::class);
+    }
+
+    public function eventReports(): HasMany
+    {
+        return $this->hasMany(DepartmentEventReport::class);
+    }
 }

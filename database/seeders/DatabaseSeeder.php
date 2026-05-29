@@ -81,13 +81,11 @@ class DatabaseSeeder extends Seeder
                 'dashboard.view',
                 'finance.view',
                 'finance.record',
-                'reports.view',
             ],
             'Mkurugenzi wa Idara' => [
                 'dashboard.view',
                 'members.view',
                 'services.manage',
-                'reports.view',
                 'reports.submit',
             ],
             'Katibu wa Idara' => [

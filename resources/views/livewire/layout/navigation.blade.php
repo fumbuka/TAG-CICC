@@ -53,6 +53,11 @@ new class extends Component
                             {{ __('messages.calendar') }}
                         </x-nav-link>
                     @endcanany
+                    @canany(['reports.view', 'reports.submit', 'reports.approve'])
+                        <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')" wire:navigate>
+                            {{ __('messages.reports') }}
+                        </x-nav-link>
+                    @endcanany
                     @can('leadership.manage')
                         <x-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
                             {{ __('messages.leadership') }}
@@ -141,6 +146,11 @@ new class extends Component
             @canany(['calendar.manage', 'calendar.submit'])
                 <x-responsive-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
                     {{ __('messages.calendar') }}
+                </x-responsive-nav-link>
+            @endcanany
+            @canany(['reports.view', 'reports.submit', 'reports.approve'])
+                <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')" wire:navigate>
+                    {{ __('messages.reports') }}
                 </x-responsive-nav-link>
             @endcanany
             @can('leadership.manage')
