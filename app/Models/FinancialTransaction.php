@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'income_category_id',
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'department_id',
     'zone_id',
     'recorded_by_user_id',
+    'pledge_id',
     'amount',
     'transaction_date',
     'reference_number',
@@ -45,6 +47,16 @@ class FinancialTransaction extends Model
     public function recordedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by_user_id');
+    }
+
+    public function pledge(): BelongsTo
+    {
+        return $this->belongsTo(Pledge::class);
+    }
+
+    public function pledgePayment(): HasOne
+    {
+        return $this->hasOne(PledgePayment::class);
     }
 
     protected function casts(): array

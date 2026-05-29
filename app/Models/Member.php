@@ -66,6 +66,11 @@ class Member extends Model
         return $this->hasMany(MemberLeadershipAssignment::class);
     }
 
+    public function pledges(): HasMany
+    {
+        return $this->hasMany(Pledge::class);
+    }
+
     public function age(): ?int
     {
         if (! $this->date_of_birth instanceof CarbonInterface) {
