@@ -9,44 +9,67 @@
         $formatMemberName = fn ($member) => $member
             ? collect([$member->first_name, $member->middle_name, $member->last_name])->filter()->join(' ')
             : __('messages.not_assigned');
+
+        $statCardClass = 'group rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md';
     @endphp
 
     <div class="py-10">
         <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+            <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div class="grid lg:grid-cols-[1fr_18rem]">
+                    <div class="p-6 sm:p-8">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
+                            <x-application-logo class="h-20 w-20" />
+                            <div>
+                                <p class="text-sm font-semibold uppercase tracking-[0.18em] text-red-700">{{ __('messages.church_management_system') }}</p>
+                                <h1 class="mt-2 text-2xl font-semibold text-gray-950 sm:text-3xl">{{ __('messages.dashboard_welcome', ['name' => auth()->user()->name]) }}</h1>
+                                <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600">{{ __('messages.dashboard_summary') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-200 bg-gray-950 p-6 text-white lg:border-l lg:border-t-0">
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-300">{{ __('messages.today') }}</p>
+                        <p class="mt-3 text-3xl font-semibold">{{ $today->translatedFormat('d') }}</p>
+                        <p class="mt-1 text-sm text-gray-300">{{ $today->translatedFormat('F Y') }}</p>
+                        <div class="mt-6 h-1 rounded-full bg-gradient-to-r from-red-600 via-yellow-300 to-red-600"></div>
+                    </div>
+                </div>
+            </section>
+
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <a href="{{ route('members.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
-                    <p class="text-sm font-medium text-gray-500">{{ __('messages.members') }}</p>
+                <a href="{{ route('members.index') }}" wire:navigate class="{{ $statCardClass }}">
+                    <p class="text-sm font-medium text-red-700">{{ __('messages.members') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($memberCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.total_registered_members') }}</p>
                 </a>
 
-                <a href="{{ route('departments.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
-                    <p class="text-sm font-medium text-gray-500">{{ __('messages.departments') }}</p>
+                <a href="{{ route('departments.index') }}" wire:navigate class="{{ $statCardClass }}">
+                    <p class="text-sm font-medium text-red-700">{{ __('messages.departments') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($departmentCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.active_departments_count') }}</p>
                 </a>
 
-                <a href="{{ route('services.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
-                    <p class="text-sm font-medium text-gray-500">{{ __('messages.services') }}</p>
+                <a href="{{ route('services.index') }}" wire:navigate class="{{ $statCardClass }}">
+                    <p class="text-sm font-medium text-red-700">{{ __('messages.services') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($serviceCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.recorded_services_count') }}</p>
                 </a>
 
-                <a href="{{ route('finance.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
-                    <p class="text-sm font-medium text-gray-500">{{ __('messages.cash_on_hand') }}</p>
+                <a href="{{ route('finance.index') }}" wire:navigate class="{{ $statCardClass }}">
+                    <p class="text-sm font-medium text-red-700">{{ __('messages.cash_on_hand') }}</p>
                     <p class="mt-3 text-3xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $cashTotal, 2) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.recorded_income_total') }}</p>
                 </a>
 
-                <a href="{{ route('zones.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
-                    <p class="text-sm font-medium text-gray-500">{{ __('messages.zones') }}</p>
+                <a href="{{ route('zones.index') }}" wire:navigate class="{{ $statCardClass }}">
+                    <p class="text-sm font-medium text-red-700">{{ __('messages.zones') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($zoneCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.active_zones_count') }}</p>
                 </a>
 
                 @can('users.manage')
-                    <a href="{{ route('users.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
-                        <p class="text-sm font-medium text-gray-500">{{ __('messages.users') }}</p>
+                    <a href="{{ route('users.index') }}" wire:navigate class="{{ $statCardClass }}">
+                        <p class="text-sm font-medium text-red-700">{{ __('messages.users') }}</p>
                         <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($systemAccessCount) }}</p>
                         <p class="mt-2 text-sm text-gray-600">{{ __('messages.members_with_system_access') }}</p>
                     </a>
@@ -61,11 +84,11 @@
                             <h3 class="mt-2 text-2xl font-semibold text-gray-950">{{ $today->translatedFormat('d F Y') }}</h3>
                         </div>
                         @canany(['calendar.manage', 'calendar.submit'])
-                            <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                            <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
                                 {{ __('messages.manage_calendar') }}
                             </a>
                         @else
-                            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
                                 {{ __('messages.today') }}
                             </span>
                         @endcanany
@@ -97,7 +120,7 @@
                 </section>
 
                 @can('calendar.manage')
-                    <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
+                    <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md">
                         <p class="text-sm font-medium text-gray-500">{{ __('messages.weekly_leadership_duty') }}</p>
                         <div class="mt-5 space-y-4">
                             <div>
