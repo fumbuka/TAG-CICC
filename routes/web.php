@@ -10,6 +10,7 @@ use App\Livewire\Members\Index as MembersIndex;
 use App\Livewire\Reports\Index as ReportsIndex;
 use App\Livewire\Services\Index as ServicesIndex;
 use App\Livewire\Users\Index as UsersIndex;
+use App\Livewire\Visitors\Index as VisitorsIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -55,6 +56,9 @@ Route::middleware(['auth'])->group(function () {
         ->name('bulk-import-templates.download');
 
     Route::get('members', MembersIndex::class)->name('members.index');
+    Route::get('visitors', VisitorsIndex::class)
+        ->middleware('permission:visitors.manage')
+        ->name('visitors.index');
     Route::get('departments', DepartmentsIndex::class)->name('departments.index');
     Route::get('zones', ZonesIndex::class)->name('zones.index');
     Route::get('services', ServicesIndex::class)->name('services.index');

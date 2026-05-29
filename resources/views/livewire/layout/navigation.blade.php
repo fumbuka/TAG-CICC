@@ -41,6 +41,11 @@ new class extends Component
                     <x-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
                         {{ __('messages.members') }}
                     </x-nav-link>
+                    @can('visitors.manage')
+                        <x-nav-link :href="route('visitors.index')" :active="request()->routeIs('visitors.*')" wire:navigate>
+                            {{ __('messages.visitors') }}
+                        </x-nav-link>
+                    @endcan
                     <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
                         {{ __('messages.departments') }}
                     </x-nav-link>
@@ -136,6 +141,11 @@ new class extends Component
             <x-responsive-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
                 {{ __('messages.members') }}
             </x-responsive-nav-link>
+            @can('visitors.manage')
+                <x-responsive-nav-link :href="route('visitors.index')" :active="request()->routeIs('visitors.*')" wire:navigate>
+                    {{ __('messages.visitors') }}
+                </x-responsive-nav-link>
+            @endcan
             <x-responsive-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
                 {{ __('messages.departments') }}
             </x-responsive-nav-link>

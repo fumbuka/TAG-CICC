@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             'members.create',
             'members.update',
             'members.import',
+            'visitors.manage',
             'departments.manage',
             'zones.manage',
             'services.manage',
@@ -56,6 +57,7 @@ class DatabaseSeeder extends Seeder
             'Mchungaji Kiongozi' => [
                 'dashboard.view',
                 'members.view',
+                'visitors.manage',
                 'departments.manage',
                 'zones.manage',
                 'finance.view',
@@ -70,6 +72,7 @@ class DatabaseSeeder extends Seeder
                 'members.create',
                 'members.update',
                 'members.import',
+                'visitors.manage',
                 'departments.manage',
                 'zones.manage',
                 'calendar.manage',
