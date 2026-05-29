@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
             'finance.view',
             'finance.record',
             'calendar.manage',
+            'calendar.submit',
             'leadership.manage',
             'reports.view',
             'reports.submit',
@@ -92,6 +93,7 @@ class DatabaseSeeder extends Seeder
             'Katibu wa Idara' => [
                 'dashboard.view',
                 'members.view',
+                'calendar.submit',
                 'reports.submit',
             ],
             'Mweka Hazina wa Idara' => [

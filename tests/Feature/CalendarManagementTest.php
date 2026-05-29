@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Livewire\Calendar\Index as CalendarIndex;
 use App\Models\CalendarEvent;
 use App\Models\Department;
+use App\Models\LeadershipTitle;
 use App\Models\Member;
+use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
 use App\Models\WeeklyDuty;
 use App\Models\Zone;
@@ -26,6 +28,10 @@ class CalendarManagementTest extends TestCase
             'name' => 'calendar.manage',
             'guard_name' => 'web',
         ]);
+        Permission::create([
+            'name' => 'calendar.submit',
+            'guard_name' => 'web',
+        ]);
 
         $this->actingAs($user)
             ->get('/calendar')
@@ -36,11 +42,17 @@ class CalendarManagementTest extends TestCase
         $this->actingAs($user)
             ->get('/calendar')
             ->assertOk();
+
+        $user->syncPermissions(['calendar.submit']);
+
+        $this->actingAs($user)
+            ->get('/calendar')
+            ->assertOk();
     }
 
     public function test_calendar_event_can_be_created_edited_and_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->calendarManager();
         $department = Department::create([
             'name' => 'Wamama',
             'slug' => 'wamama',
@@ -91,7 +103,7 @@ class CalendarManagementTest extends TestCase
 
     public function test_weekly_duty_can_be_created_edited_and_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->calendarManager();
         $elder = Member::create([
             'first_name' => 'Mzee',
             'last_name' => 'Baraka',
@@ -140,5 +152,103 @@ class CalendarManagementTest extends TestCase
         $this->assertDatabaseMissing('weekly_duties', [
             'id' => $duty->id,
         ]);
+    }
+
+    public function test_department_secretary_can_submit_department_event_without_time_collision(): void
+    {
+        $user = User::factory()->create();
+        Permission::create([
+            'name' => 'calendar.submit',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('calendar.submit');
+
+        $member = Member::create([
+            'user_id' => $user->id,
+            'first_name' => 'Asha',
+            'last_name' => 'Katibu',
+            'gender' => 'female',
+            'date_of_birth' => '1992-01-01',
+        ]);
+        $department = Department::create([
+            'name' => 'Uinjilishaji',
+            'slug' => 'uinjilishaji',
+        ]);
+        $otherDepartment = Department::create([
+            'name' => 'Maendeleo',
+            'slug' => 'maendeleo',
+        ]);
+        $title = LeadershipTitle::create([
+            'name' => 'Katibu wa Idara',
+            'slug' => 'katibu-wa-idara',
+            'scope' => 'department',
+        ]);
+
+        MemberLeadershipAssignment::create([
+            'member_id' => $member->id,
+            'leadership_title_id' => $title->id,
+            'department_id' => $department->id,
+            'is_active' => true,
+        ]);
+
+        CalendarEvent::create([
+            'department_id' => $otherDepartment->id,
+            'title' => 'Semina ya Maendeleo',
+            'event_date' => '2026-06-14',
+            'starts_at' => '10:00',
+            'ends_at' => '12:00',
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(CalendarIndex::class)
+            ->set('title', 'Semina ya Uinjilishaji')
+            ->set('event_date', '2026-06-14')
+            ->set('starts_at', '11:00')
+            ->set('ends_at', '13:00')
+            ->set('department_id', $department->id)
+            ->call('saveEvent')
+            ->assertHasErrors('starts_at');
+
+        Livewire::actingAs($user)
+            ->test(CalendarIndex::class)
+            ->set('title', 'Semina ya Uinjilishaji')
+            ->set('event_date', '2026-06-14')
+            ->set('starts_at', '12:00')
+            ->set('ends_at', '13:00')
+            ->set('department_id', $department->id)
+            ->call('saveEvent')
+            ->assertHasNoErrors()
+            ->assertDispatched('event-created');
+
+        $this->assertDatabaseHas('calendar_events', [
+            'department_id' => $department->id,
+            'created_by_user_id' => $user->id,
+            'title' => 'Semina ya Uinjilishaji',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(CalendarIndex::class)
+            ->set('title', 'Tukio la idara nyingine')
+            ->set('event_date', '2026-06-15')
+            ->set('starts_at', '08:00')
+            ->set('ends_at', '09:00')
+            ->set('department_id', $otherDepartment->id)
+            ->call('saveEvent')
+            ->assertHasErrors('department_id');
+    }
+
+    private function calendarManager(): User
+    {
+        $user = User::factory()->create();
+
+        Permission::firstOrCreate([
+            'name' => 'calendar.manage',
+            'guard_name' => 'web',
+        ]);
+
+        $user->givePermissionTo('calendar.manage');
+
+        return $user;
     }
 }

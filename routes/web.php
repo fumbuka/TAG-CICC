@@ -59,7 +59,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('services', ServicesIndex::class)->name('services.index');
     Route::get('finance', FinanceIndex::class)->name('finance.index');
     Route::get('calendar', CalendarIndex::class)
-        ->middleware('permission:calendar.manage')
+        ->middleware('permission:calendar.manage|calendar.submit')
         ->name('calendar.index');
     Route::get('leadership', LeadershipIndex::class)
         ->middleware('permission:leadership.manage')

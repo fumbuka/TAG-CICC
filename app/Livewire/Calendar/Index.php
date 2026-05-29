@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\WeeklyDuty;
 use App\Models\Zone;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -49,19 +50,51 @@ class Index extends Component
 
     public bool $duty_is_active = true;
 
+    /**
+     * @var array<int, int>
+     */
+    public array $submissionDepartmentIds = [];
+
+    public function mount(): void
+    {
+        $this->submissionDepartmentIds = $this->departmentIdsAllowedForSubmission();
+
+        if (! $this->canManageCalendar() && count($this->submissionDepartmentIds) === 1) {
+            $this->department_id = $this->submissionDepartmentIds[0];
+        }
+    }
+
     public function saveEvent(): void
     {
+        abort_unless($this->canUseCalendar(), 403);
+
+        $departmentRule = $this->canManageCalendar()
+            ? ['nullable', 'integer', Rule::exists('departments', 'id')]
+            : ['required', 'integer', Rule::in($this->submissionDepartmentIds)];
+
         $validated = $this->validate([
             'title' => ['required', 'string', 'max:255'],
             'event_date' => ['required', 'date'],
             'starts_at' => ['nullable', 'required_with:ends_at', 'date_format:H:i'],
-            'ends_at' => ['nullable', 'date_format:H:i', 'after_or_equal:starts_at'],
-            'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
+            'ends_at' => ['nullable', 'required_with:starts_at', 'date_format:H:i', 'after:starts_at'],
+            'department_id' => $departmentRule,
             'zone_id' => ['nullable', 'integer', Rule::exists('zones', 'id')],
             'description' => ['nullable', 'string', 'max:2000'],
             'is_important' => ['boolean'],
             'is_active' => ['boolean'],
         ]);
+
+        if (! $this->canManageCalendar()) {
+            $validated['zone_id'] = null;
+            $validated['is_active'] = true;
+            $validated['is_important'] = true;
+        }
+
+        if ($conflict = $this->conflictingEvent($validated, $this->editingEventId)) {
+            $this->addError('starts_at', __('messages.calendar_event_conflict', ['event' => $conflict->title]));
+
+            return;
+        }
 
         $attributes = [
             'title' => $validated['title'],
@@ -77,9 +110,16 @@ class Index extends Component
 
         $wasEditing = $this->editingEventId !== null;
 
-        $wasEditing
-            ? CalendarEvent::findOrFail($this->editingEventId)->update($attributes)
-            : CalendarEvent::create($attributes);
+        if ($wasEditing) {
+            $event = CalendarEvent::findOrFail($this->editingEventId);
+            abort_unless($this->canManageEvent($event), 403);
+
+            $event->update($attributes);
+        } else {
+            CalendarEvent::create($attributes + [
+                'created_by_user_id' => Auth::id(),
+            ]);
+        }
 
         $this->resetEventForm();
 
@@ -89,6 +129,8 @@ class Index extends Component
     public function editEvent(int $eventId): void
     {
         $event = CalendarEvent::findOrFail($eventId);
+
+        abort_unless($this->canManageEvent($event), 403);
 
         $this->editingEventId = $event->id;
         $this->title = $event->title;
@@ -109,7 +151,11 @@ class Index extends Component
 
     public function deleteEvent(int $eventId): void
     {
-        CalendarEvent::findOrFail($eventId)->delete();
+        $event = CalendarEvent::findOrFail($eventId);
+
+        abort_unless($this->canManageEvent($event), 403);
+
+        $event->delete();
 
         $this->dispatch('event-deleted');
     }
@@ -118,6 +164,18 @@ class Index extends Component
     {
         $event = CalendarEvent::findOrFail($eventId);
 
+        abort_unless($this->canManageEvent($event), 403);
+
+        if (! $event->is_active && $conflict = $this->conflictingEvent([
+            'event_date' => $event->event_date?->toDateString(),
+            'starts_at' => $event->starts_at ? substr((string) $event->starts_at, 0, 5) : null,
+            'ends_at' => $event->ends_at ? substr((string) $event->ends_at, 0, 5) : null,
+        ], $event->id)) {
+            $this->addError('starts_at', __('messages.calendar_event_conflict', ['event' => $conflict->title]));
+
+            return;
+        }
+
         $event->update([
             'is_active' => ! $event->is_active,
         ]);
@@ -125,6 +183,8 @@ class Index extends Component
 
     public function saveDuty(): void
     {
+        abort_unless($this->canManageCalendar(), 403);
+
         $validated = $this->validate([
             'week_start' => ['required', 'date'],
             'week_end' => ['required', 'date', 'after_or_equal:week_start'],
@@ -156,6 +216,8 @@ class Index extends Component
 
     public function editDuty(int $dutyId): void
     {
+        abort_unless($this->canManageCalendar(), 403);
+
         $duty = WeeklyDuty::findOrFail($dutyId);
 
         $this->editingDutyId = $duty->id;
@@ -174,6 +236,8 @@ class Index extends Component
 
     public function deleteDuty(int $dutyId): void
     {
+        abort_unless($this->canManageCalendar(), 403);
+
         WeeklyDuty::findOrFail($dutyId)->delete();
 
         $this->dispatch('duty-deleted');
@@ -181,6 +245,8 @@ class Index extends Component
 
     public function toggleDutyActive(int $dutyId): void
     {
+        abort_unless($this->canManageCalendar(), 403);
+
         $duty = WeeklyDuty::findOrFail($dutyId);
 
         $duty->update([
@@ -190,6 +256,12 @@ class Index extends Component
 
     public function render(): View
     {
+        $departments = Department::query()
+            ->where('is_active', true)
+            ->when(! $this->canManageCalendar(), fn ($query) => $query->whereIn('id', $this->submissionDepartmentIds))
+            ->orderBy('name')
+            ->get();
+
         return view('livewire.calendar.index', [
             'events' => CalendarEvent::query()
                 ->with(['department', 'zone'])
@@ -201,8 +273,10 @@ class Index extends Component
                 ->orderByDesc('week_start')
                 ->get(),
             'members' => Member::query()->orderBy('first_name')->orderBy('last_name')->get(),
-            'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
+            'departments' => $departments,
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
+            'canManageCalendar' => $this->canManageCalendar(),
+            'submissionDepartmentIds' => $this->submissionDepartmentIds,
         ]);
     }
 
@@ -220,6 +294,9 @@ class Index extends Component
         ]);
         $this->is_important = true;
         $this->is_active = true;
+        if (! $this->canManageCalendar() && count($this->submissionDepartmentIds) === 1) {
+            $this->department_id = $this->submissionDepartmentIds[0];
+        }
         $this->resetErrorBag();
     }
 
@@ -235,5 +312,95 @@ class Index extends Component
         ]);
         $this->duty_is_active = true;
         $this->resetErrorBag();
+    }
+
+    private function canUseCalendar(): bool
+    {
+        return $this->canManageCalendar() || Auth::user()?->can('calendar.submit');
+    }
+
+    private function canManageCalendar(): bool
+    {
+        return Auth::user()?->can('calendar.manage') ?? false;
+    }
+
+    private function canManageEvent(CalendarEvent $event): bool
+    {
+        if ($this->canManageCalendar()) {
+            return true;
+        }
+
+        return $event->department_id !== null
+            && in_array($event->department_id, $this->submissionDepartmentIds, true);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function departmentIdsAllowedForSubmission(): array
+    {
+        if ($this->canManageCalendar()) {
+            return [];
+        }
+
+        $member = Auth::user()?->member;
+
+        if (! $member) {
+            return [];
+        }
+
+        return $member->leadershipAssignments()
+            ->where('is_active', true)
+            ->whereNotNull('department_id')
+            ->whereHas('leadershipTitle', function ($query): void {
+                $query->where('scope', 'department')
+                    ->where('slug', 'katibu-wa-idara');
+            })
+            ->pluck('department_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function conflictingEvent(array $attributes, ?int $ignoreEventId = null): ?CalendarEvent
+    {
+        $eventDate = (string) ($attributes['event_date'] ?? '');
+
+        if ($eventDate === '') {
+            return null;
+        }
+
+        $newStart = $this->eventStartTime($attributes['starts_at'] ?? null);
+        $newEnd = $this->eventEndTime($attributes['ends_at'] ?? null);
+
+        return CalendarEvent::query()
+            ->where('is_active', true)
+            ->whereDate('event_date', $eventDate)
+            ->when($ignoreEventId, fn ($query) => $query->whereKeyNot($ignoreEventId))
+            ->get()
+            ->first(fn (CalendarEvent $event): bool => $this->timeRangesOverlap(
+                $newStart,
+                $newEnd,
+                $this->eventStartTime($event->starts_at),
+                $this->eventEndTime($event->ends_at),
+            ));
+    }
+
+    private function timeRangesOverlap(string $firstStart, string $firstEnd, string $secondStart, string $secondEnd): bool
+    {
+        return $firstStart < $secondEnd && $firstEnd > $secondStart;
+    }
+
+    private function eventStartTime(mixed $time): string
+    {
+        return $time ? substr((string) $time, 0, 5).':00' : '00:00:00';
+    }
+
+    private function eventEndTime(mixed $time): string
+    {
+        return $time ? substr((string) $time, 0, 5).':00' : '23:59:59';
     }
 }

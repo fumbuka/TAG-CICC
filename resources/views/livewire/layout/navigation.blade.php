@@ -48,11 +48,11 @@ new class extends Component
                     <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
                         {{ __('messages.finance') }}
                     </x-nav-link>
-                    @can('calendar.manage')
+                    @canany(['calendar.manage', 'calendar.submit'])
                         <x-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
                             {{ __('messages.calendar') }}
                         </x-nav-link>
-                    @endcan
+                    @endcanany
                     @can('leadership.manage')
                         <x-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
                             {{ __('messages.leadership') }}
@@ -138,11 +138,11 @@ new class extends Component
             <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
                 {{ __('messages.finance') }}
             </x-responsive-nav-link>
-            @can('calendar.manage')
+            @canany(['calendar.manage', 'calendar.submit'])
                 <x-responsive-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
                     {{ __('messages.calendar') }}
                 </x-responsive-nav-link>
-            @endcan
+            @endcanany
             @can('leadership.manage')
                 <x-responsive-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
                     {{ __('messages.leadership') }}

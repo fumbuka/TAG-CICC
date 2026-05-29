@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'department_id',
     'zone_id',
+    'created_by_user_id',
     'title',
     'event_date',
     'starts_at',
@@ -30,6 +31,11 @@ class CalendarEvent extends Model
     public function zone(): BelongsTo
     {
         return $this->belongsTo(Zone::class);
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
     protected function casts(): array

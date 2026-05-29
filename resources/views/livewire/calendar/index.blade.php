@@ -18,11 +18,23 @@
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
             x-text="message"></div>
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        @if (! $canManageCalendar && $departments->isEmpty())
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                {{ __('messages.no_department_calendar_permission') }}
+            </div>
+        @endif
+
+        <div @class([
+            'grid gap-6',
+            'lg:grid-cols-2' => $canManageCalendar,
+        ])>
             <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingEventId ? __('messages.edit_event') : __('messages.add_event') }}
                 </h2>
+                @if (! $canManageCalendar)
+                    <p class="mt-1 text-sm text-gray-600">{{ __('messages.department_calendar_submit_help') }}</p>
+                @endif
 
                 <form wire:submit="saveEvent" class="mt-5 space-y-4">
                     <div>
@@ -51,7 +63,10 @@
                         </div>
                     </div>
 
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div @class([
+                        'grid gap-4',
+                        'sm:grid-cols-2' => $canManageCalendar,
+                    ])>
                         <div>
                             <x-input-label for="department_id" :value="__('messages.department')" />
                             <select wire:model="department_id" id="department_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -63,16 +78,18 @@
                             <x-input-error :messages="$errors->get('department_id')" class="mt-2" />
                         </div>
 
-                        <div>
-                            <x-input-label for="zone_id" :value="__('messages.zone')" />
-                            <select wire:model="zone_id" id="zone_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                <option value="">{{ __('messages.no_zone_selected') }}</option>
-                                @foreach ($zones as $zone)
-                                    <option value="{{ $zone->id }}">{{ $zone->name }}</option>
-                                @endforeach
-                            </select>
-                            <x-input-error :messages="$errors->get('zone_id')" class="mt-2" />
-                        </div>
+                        @if ($canManageCalendar)
+                            <div>
+                                <x-input-label for="zone_id" :value="__('messages.zone')" />
+                                <select wire:model="zone_id" id="zone_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">{{ __('messages.no_zone_selected') }}</option>
+                                    @foreach ($zones as $zone)
+                                        <option value="{{ $zone->id }}">{{ $zone->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('zone_id')" class="mt-2" />
+                            </div>
+                        @endif
                     </div>
 
                     <div>
@@ -81,33 +98,40 @@
                         <x-input-error :messages="$errors->get('description')" class="mt-2" />
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
-                            <input wire:model="is_important" type="checkbox" class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600">
-                            <span>{{ __('messages.important_event') }}</span>
-                        </label>
+                    @if ($canManageCalendar)
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="flex items-center gap-2 text-sm text-gray-700">
+                                <input wire:model="is_important" type="checkbox" class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600">
+                                <span>{{ __('messages.important_event') }}</span>
+                            </label>
 
-                        <label class="flex items-center gap-2 text-sm text-gray-700">
-                            <input wire:model="is_active" type="checkbox" class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600">
-                            <span>{{ __('messages.active') }}</span>
-                        </label>
-                    </div>
+                            <label class="flex items-center gap-2 text-sm text-gray-700">
+                                <input wire:model="is_active" type="checkbox" class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600">
+                                <span>{{ __('messages.active') }}</span>
+                            </label>
+                        </div>
+                    @endif
 
                     <div class="flex justify-end gap-2">
                         @if ($editingEventId)
                             <x-secondary-button type="button" wire:click="cancelEventEdit">{{ __('messages.cancel') }}</x-secondary-button>
                         @endif
-                        <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                        @if (! $canManageCalendar && $departments->isEmpty())
+                            <x-primary-button disabled>{{ __('messages.save') }}</x-primary-button>
+                        @else
+                            <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                        @endif
                     </div>
                 </form>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 class="text-lg font-semibold text-gray-950">
-                    {{ $editingDutyId ? __('messages.edit_weekly_duty') : __('messages.add_weekly_duty') }}
-                </h2>
+            @if ($canManageCalendar)
+                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                    <h2 class="text-lg font-semibold text-gray-950">
+                        {{ $editingDutyId ? __('messages.edit_weekly_duty') : __('messages.add_weekly_duty') }}
+                    </h2>
 
-                <form wire:submit="saveDuty" class="mt-5 space-y-4">
+                    <form wire:submit="saveDuty" class="mt-5 space-y-4">
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <x-input-label for="week_start" :value="__('messages.week_start')" />
@@ -163,11 +187,15 @@
                         @endif
                         <x-primary-button>{{ __('messages.save') }}</x-primary-button>
                     </div>
-                </form>
-            </section>
+                    </form>
+                </section>
+            @endif
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <div @class([
+            'grid gap-6',
+            'lg:grid-cols-[1.1fr_0.9fr]' => $canManageCalendar,
+        ])>
             <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.calendar_events') }}</h2>
@@ -186,6 +214,9 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
                             @forelse ($events as $event)
+                                @php
+                                    $canEditEvent = $canManageCalendar || in_array($event->department_id, $submissionDepartmentIds, true);
+                                @endphp
                                 <tr>
                                     <td class="px-5 py-4">
                                         <p class="font-medium text-gray-950">{{ $event->title }}</p>
@@ -217,13 +248,17 @@
                                         </span>
                                     </td>
                                     <td class="px-5 py-4">
-                                        <div class="flex flex-wrap gap-3">
-                                            <button wire:click="editEvent({{ $event->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
-                                            <button wire:click="toggleEventActive({{ $event->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
-                                                {{ $event->is_active ? __('messages.deactivate') : __('messages.activate') }}
-                                            </button>
-                                            <button wire:click="deleteEvent({{ $event->id }})" wire:confirm="{{ __('messages.confirm_delete_event') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
-                                        </div>
+                                        @if ($canEditEvent)
+                                            <div class="flex flex-wrap gap-3">
+                                                <button wire:click="editEvent({{ $event->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
+                                                <button wire:click="toggleEventActive({{ $event->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
+                                                    {{ $event->is_active ? __('messages.deactivate') : __('messages.activate') }}
+                                                </button>
+                                                <button wire:click="deleteEvent({{ $event->id }})" wire:confirm="{{ __('messages.confirm_delete_event') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
+                                            </div>
+                                        @else
+                                            <span class="text-gray-400">-</span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -236,7 +271,8 @@
                 </div>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            @if ($canManageCalendar)
+                <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.weekly_duties') }}</h2>
                 </div>
@@ -288,7 +324,8 @@
                         </tbody>
                     </table>
                 </div>
-            </section>
+                </section>
+            @endif
         </div>
     </div>
 </div>
