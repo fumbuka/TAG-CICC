@@ -131,6 +131,8 @@ class Index extends Component
 
     public function saveCategory(): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $validated = $this->validate([
             'category_name' => ['required', 'string', 'max:255', Rule::unique('income_categories', 'name')->ignore($this->editingCategoryId)],
             'category_description' => ['nullable', 'string', 'max:1000'],
@@ -157,6 +159,8 @@ class Index extends Component
 
     public function editCategory(int $categoryId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $category = IncomeCategory::findOrFail($categoryId);
 
         $this->editingCategoryId = $category->id;
@@ -172,6 +176,8 @@ class Index extends Component
 
     public function deleteCategory(int $categoryId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $category = IncomeCategory::withCount(['financialTransactions', 'pledges'])->findOrFail($categoryId);
 
         if ($category->financial_transactions_count > 0 || $category->pledges_count > 0) {
@@ -187,6 +193,8 @@ class Index extends Component
 
     public function toggleCategoryActive(int $categoryId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $category = IncomeCategory::findOrFail($categoryId);
 
         $category->update([
@@ -196,6 +204,8 @@ class Index extends Component
 
     public function saveExpenseCategory(): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $validated = $this->validate([
             'expense_category_name' => ['required', 'string', 'max:255', Rule::unique('expense_categories', 'name')->ignore($this->editingExpenseCategoryId)],
             'expense_category_description' => ['nullable', 'string', 'max:1000'],
@@ -222,6 +232,8 @@ class Index extends Component
 
     public function editExpenseCategory(int $categoryId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $category = ExpenseCategory::findOrFail($categoryId);
 
         $this->editingExpenseCategoryId = $category->id;
@@ -237,6 +249,8 @@ class Index extends Component
 
     public function deleteExpenseCategory(int $categoryId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $category = ExpenseCategory::withCount('expenses')->findOrFail($categoryId);
 
         if ($category->expenses_count > 0) {
@@ -252,6 +266,8 @@ class Index extends Component
 
     public function toggleExpenseCategoryActive(int $categoryId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $category = ExpenseCategory::findOrFail($categoryId);
 
         $category->update([
@@ -261,6 +277,8 @@ class Index extends Component
 
     public function save(): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $validated = $this->validate([
             'income_category_id' => ['required', 'integer', Rule::exists('income_categories', 'id')],
             'service_id' => ['nullable', 'integer', Rule::exists('services', 'id')],
@@ -330,6 +348,8 @@ class Index extends Component
 
     public function edit(int $transactionId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $transaction = FinancialTransaction::findOrFail($transactionId);
 
         $this->editingTransactionId = $transaction->id;
@@ -350,6 +370,8 @@ class Index extends Component
 
     public function delete(int $transactionId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $transaction = FinancialTransaction::with('pledgePayment.pledge')->findOrFail($transactionId);
         $pledge = $transaction->pledgePayment?->pledge;
 
@@ -369,6 +391,8 @@ class Index extends Component
 
     public function saveExpense(): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $validated = $this->validate([
             'expense_category_id' => ['required', 'integer', Rule::exists('expense_categories', 'id')],
             'expense_service_id' => ['nullable', 'integer', Rule::exists('services', 'id')],
@@ -407,6 +431,8 @@ class Index extends Component
 
     public function editExpense(int $expenseId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $expense = Expense::findOrFail($expenseId);
 
         $this->editingExpenseId = $expense->id;
@@ -428,6 +454,8 @@ class Index extends Component
 
     public function deleteExpense(int $expenseId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         Expense::findOrFail($expenseId)->delete();
 
         if ($this->editingExpenseId === $expenseId) {
@@ -439,6 +467,8 @@ class Index extends Component
 
     public function savePledge(): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $validated = $this->validate([
             'pledge_member_id' => ['nullable', 'integer', Rule::exists('members', 'id')],
             'donor_name' => ['nullable', 'string', 'max:255'],
@@ -501,6 +531,8 @@ class Index extends Component
 
     public function editPledge(int $pledgeId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $pledge = Pledge::findOrFail($pledgeId);
 
         $this->editingPledgeId = $pledge->id;
@@ -524,6 +556,8 @@ class Index extends Component
 
     public function deletePledge(int $pledgeId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $pledge = Pledge::withCount('payments')->findOrFail($pledgeId);
 
         if ($pledge->payments_count > 0) {
@@ -539,6 +573,8 @@ class Index extends Component
 
     public function recordPledgePayment(): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $validated = $this->validate([
             'payment_pledge_id' => ['required', 'integer', Rule::exists('pledges', 'id')],
             'payment_amount' => ['required', 'numeric', 'min:0.01'],
@@ -595,6 +631,8 @@ class Index extends Component
 
     public function deletePledgePayment(int $paymentId): void
     {
+        abort_unless($this->canRecordFinance(), 403);
+
         $payment = PledgePayment::with(['financialTransaction', 'pledge'])->findOrFail($paymentId);
         $pledge = $payment->pledge;
 
@@ -696,6 +734,7 @@ class Index extends Component
             'todayExpenseTotal' => $todayExpenseTotal,
             'monthExpenseTotal' => $monthExpenseTotal,
             'cashBalance' => (float) $totalIncome - (float) $totalExpenses,
+            'canRecordFinance' => $this->canRecordFinance(),
         ]);
     }
 
@@ -792,5 +831,10 @@ class Index extends Component
         $pledge->update([
             'status' => $pledge->paidAmount() >= (float) $pledge->pledged_amount ? 'completed' : 'active',
         ]);
+    }
+
+    private function canRecordFinance(): bool
+    {
+        return Auth::user()?->can('finance.record') ?? false;
     }
 }

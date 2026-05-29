@@ -8,6 +8,7 @@ return [
     'secure_login' => 'Secure login',
     'welcome_back' => 'Welcome back',
     'login_help' => 'Use the email address or phone number that has been granted access to the system.',
+    'finance_view_only' => 'You are viewing finance records only. Recording, editing, or deleting requires treasurer/accountant permission.',
     'dashboard' => 'Dashboard',
     'dashboard_welcome' => 'Welcome, :name',
     'dashboard_summary' => 'See the church at a glance: members, departments, services, finance, calendar, and weekly leadership duties.',

@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class ServicesFinanceTest extends TestCase
@@ -33,6 +34,61 @@ class ServicesFinanceTest extends TestCase
     public function test_finance_page_requires_authentication(): void
     {
         $this->get('/finance')->assertRedirect('/login');
+    }
+
+    public function test_finance_page_requires_finance_permission(): void
+    {
+        Permission::firstOrCreate([
+            'name' => 'finance.view',
+            'guard_name' => 'web',
+        ]);
+        Permission::firstOrCreate([
+            'name' => 'finance.record',
+            'guard_name' => 'web',
+        ]);
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/finance')
+            ->assertForbidden();
+
+        $user->givePermissionTo('finance.view');
+
+        $this->actingAs($user)
+            ->get('/finance')
+            ->assertOk();
+
+        $recorder = User::factory()->create();
+        $recorder->givePermissionTo('finance.record');
+
+        $this->actingAs($recorder)
+            ->get('/finance')
+            ->assertOk();
+    }
+
+    public function test_finance_view_only_user_cannot_record_finance_changes(): void
+    {
+        Permission::firstOrCreate([
+            'name' => 'finance.view',
+            'guard_name' => 'web',
+        ]);
+
+        $user = User::factory()->create();
+        $user->givePermissionTo('finance.view');
+
+        $category = IncomeCategory::create([
+            'name' => 'Sadaka',
+            'slug' => 'sadaka',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->set('income_category_id', $category->id)
+            ->set('amount', '10000')
+            ->set('transaction_date', '2026-05-29')
+            ->call('save')
+            ->assertForbidden();
     }
 
     public function test_service_can_be_recorded_edited_and_deleted_when_empty(): void
@@ -137,7 +193,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_financial_transaction_can_be_recorded_edited_and_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
         $serviceType = ServiceType::create([
             'name' => 'Ibada ya Zone',
             'slug' => 'ibada-ya-zone',
@@ -192,7 +248,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_income_categories_can_be_defined_edited_deactivated_and_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
 
         Livewire::actingAs($user)
             ->test(FinanceIndex::class)
@@ -241,7 +297,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_income_category_with_transactions_or_pledges_cannot_be_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
         $category = IncomeCategory::create([
             'name' => 'Sadaka',
             'slug' => 'sadaka',
@@ -265,7 +321,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_expense_categories_can_be_defined_edited_deactivated_and_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
 
         Livewire::actingAs($user)
             ->test(FinanceIndex::class)
@@ -314,7 +370,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_expenses_can_be_recorded_edited_and_deleted(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
         $category = ExpenseCategory::create([
             'name' => 'Matengenezo',
             'slug' => 'matengenezo',
@@ -365,7 +421,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_expense_category_with_expenses_cannot_be_deleted_and_dashboard_cash_is_net(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
         $incomeCategory = IncomeCategory::create([
             'name' => 'Sadaka',
             'slug' => 'sadaka',
@@ -400,7 +456,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_pledges_can_be_paid_in_installments_until_completed(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
         $member = Member::create([
             'first_name' => 'Fumbuka',
             'last_name' => 'Adam',
@@ -472,7 +528,7 @@ class ServicesFinanceTest extends TestCase
 
     public function test_pledge_payments_can_be_deleted_and_reopen_the_pledge_balance(): void
     {
-        $user = User::factory()->create();
+        $user = $this->financeRecorder();
         $category = IncomeCategory::create([
             'name' => 'Mchango wa Ujenzi',
             'slug' => 'mchango-wa-ujenzi',
@@ -522,5 +578,19 @@ class ServicesFinanceTest extends TestCase
         $this->assertDatabaseMissing('financial_transactions', [
             'id' => $transaction->id,
         ]);
+    }
+
+    private function financeRecorder(): User
+    {
+        $user = User::factory()->create();
+
+        Permission::firstOrCreate([
+            'name' => 'finance.record',
+            'guard_name' => 'web',
+        ]);
+
+        $user->givePermissionTo('finance.record');
+
+        return $user;
     }
 }

@@ -70,6 +70,13 @@
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
+        @unless ($canRecordFinance)
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                {{ __('messages.finance_view_only') }}
+            </div>
+        @endunless
+
+        @if ($canRecordFinance)
         <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
@@ -163,7 +170,9 @@
                 </div>
             </div>
         </section>
+        @endif
 
+        @if ($canRecordFinance)
         <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
@@ -256,6 +265,7 @@
                 </div>
             </div>
         </section>
+        @endif
 
         <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
@@ -265,7 +275,11 @@
                 </div>
             </div>
 
-            <div class="grid gap-6 p-5 lg:grid-cols-[0.95fr_1.4fr]">
+            <div @class([
+                'grid gap-6 p-5',
+                'lg:grid-cols-[0.95fr_1.4fr]' => $canRecordFinance,
+            ])>
+                @if ($canRecordFinance)
                 <form wire:submit="saveExpense" class="space-y-4">
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
                         {{ $editingExpenseId ? __('messages.edit_expense') : __('messages.record_expense') }}
@@ -358,6 +372,7 @@
                         <x-primary-button>{{ __('messages.save') }}</x-primary-button>
                     </div>
                 </form>
+                @endif
 
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -367,7 +382,9 @@
                                 <th class="px-5 py-3">{{ __('messages.expense_category') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.context') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.amount') }}</th>
-                                <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                                @if ($canRecordFinance)
+                                    <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
@@ -390,20 +407,22 @@
                                     <td class="px-5 py-4 font-medium text-red-700">
                                         {{ __('messages.currency_tzs') }} {{ number_format((float) $expense->amount, 2) }}
                                     </td>
-                                    <td class="px-5 py-4">
-                                        <div class="flex flex-wrap gap-3">
-                                            <button wire:click="editExpense({{ $expense->id }})" type="button" class="text-sm font-medium text-red-700 hover:text-red-900">
-                                                {{ __('messages.edit') }}
-                                            </button>
-                                            <button wire:click="deleteExpense({{ $expense->id }})" wire:confirm="{{ __('messages.confirm_delete_expense') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
-                                                {{ __('messages.delete') }}
-                                            </button>
-                                        </div>
-                                    </td>
+                                    @if ($canRecordFinance)
+                                        <td class="px-5 py-4">
+                                            <div class="flex flex-wrap gap-3">
+                                                <button wire:click="editExpense({{ $expense->id }})" type="button" class="text-sm font-medium text-red-700 hover:text-red-900">
+                                                    {{ __('messages.edit') }}
+                                                </button>
+                                                <button wire:click="deleteExpense({{ $expense->id }})" wire:confirm="{{ __('messages.confirm_delete_expense') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                    {{ __('messages.delete') }}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_expenses') }}</td>
+                                    <td colspan="{{ $canRecordFinance ? 5 : 4 }}" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_expenses') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -420,6 +439,7 @@
                 </div>
             </div>
 
+            @if ($canRecordFinance)
             <div class="grid gap-6 p-5 lg:grid-cols-2">
                 <form wire:submit="savePledge" class="space-y-4">
                     <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
@@ -594,6 +614,7 @@
                     </div>
                 </form>
             </div>
+            @endif
 
             <div class="border-t border-gray-200">
                 <div class="overflow-x-auto">
@@ -606,7 +627,9 @@
                                 <th class="px-5 py-3">{{ __('messages.paid_amount') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.balance') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.status') }}</th>
-                                <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                                @if ($canRecordFinance)
+                                    <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
@@ -647,20 +670,22 @@
                                             <div class="text-xs text-gray-500">{{ $progress }}% {{ __('messages.progress') }}</div>
                                         </div>
                                     </td>
-                                    <td class="px-5 py-4">
-                                        <div class="flex flex-wrap gap-3">
-                                            <button wire:click="editPledge({{ $pledge->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-                                                {{ __('messages.edit') }}
-                                            </button>
-                                            <button wire:click="deletePledge({{ $pledge->id }})" wire:confirm="{{ __('messages.confirm_delete_pledge') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
-                                                {{ __('messages.delete') }}
-                                            </button>
-                                        </div>
-                                    </td>
+                                    @if ($canRecordFinance)
+                                        <td class="px-5 py-4">
+                                            <div class="flex flex-wrap gap-3">
+                                                <button wire:click="editPledge({{ $pledge->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                                    {{ __('messages.edit') }}
+                                                </button>
+                                                <button wire:click="deletePledge({{ $pledge->id }})" wire:confirm="{{ __('messages.confirm_delete_pledge') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                    {{ __('messages.delete') }}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_pledges') }}</td>
+                                    <td colspan="{{ $canRecordFinance ? 7 : 6 }}" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_pledges') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -678,7 +703,9 @@
                                 <th class="px-4 py-3">{{ __('messages.pledge') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.amount') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.reference_number') }}</th>
-                                <th class="px-4 py-3">{{ __('messages.actions') }}</th>
+                                @if ($canRecordFinance)
+                                    <th class="px-4 py-3">{{ __('messages.actions') }}</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
@@ -696,15 +723,17 @@
                                     </td>
                                     <td class="px-4 py-3 font-medium text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $payment->amount, 2) }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ $payment->reference_number ?: '-' }}</td>
-                                    <td class="px-4 py-3">
-                                        <button wire:click="deletePledgePayment({{ $payment->id }})" wire:confirm="{{ __('messages.confirm_delete_pledge_payment') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
-                                            {{ __('messages.delete') }}
-                                        </button>
-                                    </td>
+                                    @if ($canRecordFinance)
+                                        <td class="px-4 py-3">
+                                            <button wire:click="deletePledgePayment({{ $payment->id }})" wire:confirm="{{ __('messages.confirm_delete_pledge_payment') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                {{ __('messages.delete') }}
+                                            </button>
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">{{ __('messages.no_pledge_payments') }}</td>
+                                    <td colspan="{{ $canRecordFinance ? 5 : 4 }}" class="px-4 py-8 text-center text-gray-500">{{ __('messages.no_pledge_payments') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -713,7 +742,11 @@
             </div>
         </section>
 
-        <div class="grid gap-6 lg:grid-cols-[0.95fr_1.4fr]">
+        <div @class([
+            'grid gap-6',
+            'lg:grid-cols-[0.95fr_1.4fr]' => $canRecordFinance,
+        ])>
+            @if ($canRecordFinance)
             <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingTransactionId ? __('messages.edit_transaction') : __('messages.record_transaction') }}
@@ -802,6 +835,7 @@
                     </div>
                 </form>
             </section>
+            @endif
 
             <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
@@ -819,7 +853,9 @@
                                 <th class="px-5 py-3">{{ __('messages.income_category') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.context') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.amount') }}</th>
-                                <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                                @if ($canRecordFinance)
+                                    <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
@@ -842,20 +878,22 @@
                                     <td class="px-5 py-4 font-medium text-gray-950">
                                         {{ __('messages.currency_tzs') }} {{ number_format((float) $transaction->amount, 2) }}
                                     </td>
-                                    <td class="px-5 py-4">
-                                        <div class="flex flex-wrap gap-3">
-                                            <button wire:click="edit({{ $transaction->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-                                                {{ __('messages.edit') }}
-                                            </button>
-                                            <button wire:click="delete({{ $transaction->id }})" wire:confirm="{{ __('messages.confirm_delete_transaction') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
-                                                {{ __('messages.delete') }}
-                                            </button>
-                                        </div>
-                                    </td>
+                                    @if ($canRecordFinance)
+                                        <td class="px-5 py-4">
+                                            <div class="flex flex-wrap gap-3">
+                                                <button wire:click="edit({{ $transaction->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                                    {{ __('messages.edit') }}
+                                                </button>
+                                                <button wire:click="delete({{ $transaction->id }})" wire:confirm="{{ __('messages.confirm_delete_transaction') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                    {{ __('messages.delete') }}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_transactions') }}</td>
+                                    <td colspan="{{ $canRecordFinance ? 5 : 4 }}" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_transactions') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>

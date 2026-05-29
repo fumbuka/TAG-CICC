@@ -62,7 +62,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('departments', DepartmentsIndex::class)->name('departments.index');
     Route::get('zones', ZonesIndex::class)->name('zones.index');
     Route::get('services', ServicesIndex::class)->name('services.index');
-    Route::get('finance', FinanceIndex::class)->name('finance.index');
+    Route::get('finance', FinanceIndex::class)
+        ->middleware('permission:finance.view|finance.record')
+        ->name('finance.index');
     Route::get('calendar', CalendarIndex::class)
         ->middleware('permission:calendar.manage|calendar.submit')
         ->name('calendar.index');

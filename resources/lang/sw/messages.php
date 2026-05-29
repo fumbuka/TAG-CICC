@@ -8,6 +8,7 @@ return [
     'secure_login' => 'Ingia salama',
     'welcome_back' => 'Karibu tena',
     'login_help' => 'Tumia barua pepe au namba ya simu uliyopewa ruhusa kuingia kwenye mfumo.',
+    'finance_view_only' => 'Unaangalia taarifa za fedha tu. Kurekodi, kuhariri, au kufuta kunahitaji ruhusa ya mhasibu/mweka hazina.',
     'dashboard' => 'Dashibodi',
     'dashboard_welcome' => 'Karibu, :name',
     'dashboard_summary' => 'Tazama hali ya kanisa kwa haraka: washirika, idara, ibada, fedha, kalenda, na zamu za uongozi.',
