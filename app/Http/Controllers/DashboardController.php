@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CalendarEvent;
 use App\Models\Department;
+use App\Models\Expense;
 use App\Models\FinancialTransaction;
 use App\Models\Member;
 use App\Models\Service;
@@ -23,7 +24,7 @@ class DashboardController extends Controller
             'departmentCount' => Department::query()->where('is_active', true)->count(),
             'zoneCount' => Zone::query()->where('is_active', true)->count(),
             'serviceCount' => Service::query()->count(),
-            'cashTotal' => FinancialTransaction::query()->sum('amount'),
+            'cashTotal' => (float) FinancialTransaction::query()->sum('amount') - (float) Expense::query()->sum('amount'),
             'systemAccessCount' => User::query()->whereHas('member')->where('is_active', true)->count(),
             'today' => $today,
             'upcomingEvents' => CalendarEvent::query()

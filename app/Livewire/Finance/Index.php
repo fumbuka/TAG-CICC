@@ -3,6 +3,8 @@
 namespace App\Livewire\Finance;
 
 use App\Models\Department;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\FinancialTransaction;
 use App\Models\IncomeCategory;
 use App\Models\Member;
@@ -32,6 +34,14 @@ class Index extends Component
 
     public bool $category_is_active = true;
 
+    public ?int $editingExpenseCategoryId = null;
+
+    public string $expense_category_name = '';
+
+    public string $expense_category_description = '';
+
+    public bool $expense_category_is_active = true;
+
     public ?int $editingTransactionId = null;
 
     public string $search = '';
@@ -51,6 +61,26 @@ class Index extends Component
     public string $reference_number = '';
 
     public string $notes = '';
+
+    public ?int $editingExpenseId = null;
+
+    public ?int $expense_category_id = null;
+
+    public ?int $expense_service_id = null;
+
+    public ?int $expense_department_id = null;
+
+    public ?int $expense_zone_id = null;
+
+    public string $expense_amount = '';
+
+    public string $expense_date = '';
+
+    public string $paid_to = '';
+
+    public string $expense_reference_number = '';
+
+    public string $expense_notes = '';
 
     public ?int $editingPledgeId = null;
 
@@ -89,6 +119,7 @@ class Index extends Component
     public function mount(): void
     {
         $this->transaction_date = now()->toDateString();
+        $this->expense_date = now()->toDateString();
         $this->pledged_at = now()->toDateString();
         $this->payment_date = now()->toDateString();
     }
@@ -157,6 +188,71 @@ class Index extends Component
     public function toggleCategoryActive(int $categoryId): void
     {
         $category = IncomeCategory::findOrFail($categoryId);
+
+        $category->update([
+            'is_active' => ! $category->is_active,
+        ]);
+    }
+
+    public function saveExpenseCategory(): void
+    {
+        $validated = $this->validate([
+            'expense_category_name' => ['required', 'string', 'max:255', Rule::unique('expense_categories', 'name')->ignore($this->editingExpenseCategoryId)],
+            'expense_category_description' => ['nullable', 'string', 'max:1000'],
+            'expense_category_is_active' => ['boolean'],
+        ]);
+
+        $attributes = [
+            'name' => $validated['expense_category_name'],
+            'slug' => Str::slug($validated['expense_category_name']),
+            'description' => $validated['expense_category_description'] ?: null,
+            'is_active' => $validated['expense_category_is_active'],
+        ];
+
+        $wasEditing = $this->editingExpenseCategoryId !== null;
+
+        $wasEditing
+            ? ExpenseCategory::findOrFail($this->editingExpenseCategoryId)->update($attributes)
+            : ExpenseCategory::create($attributes);
+
+        $this->resetExpenseCategoryForm();
+
+        $this->dispatch($wasEditing ? 'expense-category-updated' : 'expense-category-created');
+    }
+
+    public function editExpenseCategory(int $categoryId): void
+    {
+        $category = ExpenseCategory::findOrFail($categoryId);
+
+        $this->editingExpenseCategoryId = $category->id;
+        $this->expense_category_name = $category->name;
+        $this->expense_category_description = $category->description ?? '';
+        $this->expense_category_is_active = $category->is_active;
+    }
+
+    public function cancelExpenseCategoryEdit(): void
+    {
+        $this->resetExpenseCategoryForm();
+    }
+
+    public function deleteExpenseCategory(int $categoryId): void
+    {
+        $category = ExpenseCategory::withCount('expenses')->findOrFail($categoryId);
+
+        if ($category->expenses_count > 0) {
+            $this->addError('expense_category_action', __('messages.expense_category_delete_blocked'));
+
+            return;
+        }
+
+        $category->delete();
+
+        $this->dispatch('expense-category-deleted');
+    }
+
+    public function toggleExpenseCategoryActive(int $categoryId): void
+    {
+        $category = ExpenseCategory::findOrFail($categoryId);
 
         $category->update([
             'is_active' => ! $category->is_active,
@@ -269,6 +365,76 @@ class Index extends Component
         }
 
         $this->dispatch('transaction-deleted');
+    }
+
+    public function saveExpense(): void
+    {
+        $validated = $this->validate([
+            'expense_category_id' => ['required', 'integer', Rule::exists('expense_categories', 'id')],
+            'expense_service_id' => ['nullable', 'integer', Rule::exists('services', 'id')],
+            'expense_department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
+            'expense_zone_id' => ['nullable', 'integer', Rule::exists('zones', 'id')],
+            'expense_amount' => ['required', 'numeric', 'min:0.01'],
+            'expense_date' => ['required', 'date'],
+            'paid_to' => ['nullable', 'string', 'max:255'],
+            'expense_reference_number' => ['nullable', 'string', 'max:255'],
+            'expense_notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $attributes = [
+            'expense_category_id' => $validated['expense_category_id'],
+            'service_id' => $validated['expense_service_id'],
+            'department_id' => $validated['expense_department_id'],
+            'zone_id' => $validated['expense_zone_id'],
+            'recorded_by_user_id' => Auth::id(),
+            'amount' => $validated['expense_amount'],
+            'expense_date' => $validated['expense_date'],
+            'paid_to' => $validated['paid_to'] ?: null,
+            'reference_number' => $validated['expense_reference_number'] ?: null,
+            'notes' => $validated['expense_notes'] ?: null,
+        ];
+
+        $wasEditing = $this->editingExpenseId !== null;
+
+        $wasEditing
+            ? Expense::findOrFail($this->editingExpenseId)->update($attributes)
+            : Expense::create($attributes);
+
+        $this->resetExpenseForm();
+
+        $this->dispatch($wasEditing ? 'expense-updated' : 'expense-created');
+    }
+
+    public function editExpense(int $expenseId): void
+    {
+        $expense = Expense::findOrFail($expenseId);
+
+        $this->editingExpenseId = $expense->id;
+        $this->expense_category_id = $expense->expense_category_id;
+        $this->expense_service_id = $expense->service_id;
+        $this->expense_department_id = $expense->department_id;
+        $this->expense_zone_id = $expense->zone_id;
+        $this->expense_amount = (string) $expense->amount;
+        $this->expense_date = $expense->expense_date?->toDateString() ?? '';
+        $this->paid_to = $expense->paid_to ?? '';
+        $this->expense_reference_number = $expense->reference_number ?? '';
+        $this->expense_notes = $expense->notes ?? '';
+    }
+
+    public function cancelExpenseEdit(): void
+    {
+        $this->resetExpenseForm();
+    }
+
+    public function deleteExpense(int $expenseId): void
+    {
+        Expense::findOrFail($expenseId)->delete();
+
+        if ($this->editingExpenseId === $expenseId) {
+            $this->resetExpenseForm();
+        }
+
+        $this->dispatch('expense-deleted');
     }
 
     public function savePledge(): void
@@ -443,6 +609,7 @@ class Index extends Component
     public function render(): View
     {
         $transactionsQuery = FinancialTransaction::query();
+        $expensesQuery = Expense::query();
 
         $monthTotal = (clone $transactionsQuery)
             ->whereBetween('transaction_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
@@ -450,6 +617,14 @@ class Index extends Component
 
         $todayTotal = (clone $transactionsQuery)
             ->whereDate('transaction_date', now()->toDateString())
+            ->sum('amount');
+
+        $monthExpenseTotal = (clone $expensesQuery)
+            ->whereBetween('expense_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
+            ->sum('amount');
+
+        $todayExpenseTotal = (clone $expensesQuery)
+            ->whereDate('expense_date', now()->toDateString())
             ->sum('amount');
 
         $transactions = $transactionsQuery
@@ -468,10 +643,19 @@ class Index extends Component
             ->latest()
             ->paginate(10);
 
+        $expenses = Expense::query()
+            ->with(['expenseCategory', 'service', 'department', 'zone', 'recordedBy'])
+            ->latest('expense_date')
+            ->latest()
+            ->limit(10)
+            ->get();
+
         $totalPledged = Pledge::query()->where('status', '!=', 'cancelled')->sum('pledged_amount');
         $totalPledgePaid = PledgePayment::query()
             ->whereHas('pledge', fn ($query) => $query->where('status', '!=', 'cancelled'))
             ->sum('amount');
+        $totalIncome = FinancialTransaction::query()->sum('amount');
+        $totalExpenses = Expense::query()->sum('amount');
 
         return view('livewire.finance.index', [
             'transactions' => $transactions,
@@ -481,6 +665,13 @@ class Index extends Component
                 ->orderByDesc('is_active')
                 ->orderBy('name')
                 ->get(),
+            'expenseCategories' => ExpenseCategory::query()->where('is_active', true)->orderBy('name')->get(),
+            'allExpenseCategories' => ExpenseCategory::query()
+                ->withCount('expenses')
+                ->orderByDesc('is_active')
+                ->orderBy('name')
+                ->get(),
+            'expenses' => $expenses,
             'services' => Service::query()->latest('service_date')->limit(50)->get(),
             'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
@@ -502,6 +693,9 @@ class Index extends Component
             'totalPledgeBalance' => max((float) $totalPledged - (float) $totalPledgePaid, 0),
             'monthTotal' => $monthTotal,
             'todayTotal' => $todayTotal,
+            'todayExpenseTotal' => $todayExpenseTotal,
+            'monthExpenseTotal' => $monthExpenseTotal,
+            'cashBalance' => (float) $totalIncome - (float) $totalExpenses,
         ]);
     }
 
@@ -509,6 +703,13 @@ class Index extends Component
     {
         $this->reset(['editingCategoryId', 'category_name', 'category_description']);
         $this->category_is_active = true;
+        $this->resetErrorBag();
+    }
+
+    private function resetExpenseCategoryForm(): void
+    {
+        $this->reset(['editingExpenseCategoryId', 'expense_category_name', 'expense_category_description']);
+        $this->expense_category_is_active = true;
         $this->resetErrorBag();
     }
 
@@ -527,6 +728,25 @@ class Index extends Component
         ]);
 
         $this->transaction_date = now()->toDateString();
+        $this->resetErrorBag();
+    }
+
+    private function resetExpenseForm(): void
+    {
+        $this->reset([
+            'editingExpenseId',
+            'expense_category_id',
+            'expense_service_id',
+            'expense_department_id',
+            'expense_zone_id',
+            'expense_amount',
+            'expense_date',
+            'paid_to',
+            'expense_reference_number',
+            'expense_notes',
+        ]);
+
+        $this->expense_date = now()->toDateString();
         $this->resetErrorBag();
     }
 

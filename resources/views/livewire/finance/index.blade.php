@@ -8,7 +8,7 @@
             </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.today_total') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $todayTotal, 2) }}</p>
@@ -16,6 +16,14 @@
             <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.month_total') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $monthTotal, 2) }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <p class="text-sm font-medium text-gray-500">{{ __('messages.month_expenses') }}</p>
+                <p class="mt-2 text-2xl font-semibold text-red-700">{{ __('messages.currency_tzs') }} {{ number_format((float) $monthExpenseTotal, 2) }}</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <p class="text-sm font-medium text-gray-500">{{ __('messages.cash_on_hand') }}</p>
+                <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $cashBalance, 2) }}</p>
             </div>
             <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.total_pledged') }}</p>
@@ -34,6 +42,12 @@
             x-on:category-created.window="message = '{{ __('messages.income_category_created') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:category-updated.window="message = '{{ __('messages.income_category_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:category-deleted.window="message = '{{ __('messages.income_category_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:expense-category-created.window="message = '{{ __('messages.expense_category_created') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:expense-category-updated.window="message = '{{ __('messages.expense_category_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:expense-category-deleted.window="message = '{{ __('messages.expense_category_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:expense-created.window="message = '{{ __('messages.expense_created') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:expense-updated.window="message = '{{ __('messages.expense_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:expense-deleted.window="message = '{{ __('messages.expense_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:pledge-created.window="message = '{{ __('messages.pledge_created') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:pledge-updated.window="message = '{{ __('messages.pledge_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:pledge-deleted.window="message = '{{ __('messages.pledge_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
@@ -49,6 +63,10 @@
         @enderror
 
         @error('pledge_action')
+            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
+        @enderror
+
+        @error('expense_category_action')
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
@@ -138,6 +156,254 @@
                             @empty
                                 <tr>
                                     <td colspan="4" class="px-4 py-8 text-center text-gray-500">{{ __('messages.no_income_categories') }}</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 p-5">
+                <div class="flex flex-col gap-1">
+                    <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.manage_expense_categories') }}</h2>
+                    <p class="text-sm text-gray-600">{{ __('messages.expense_category_help') }}</p>
+                </div>
+            </div>
+
+            <div class="grid gap-6 p-5 lg:grid-cols-[0.85fr_1.25fr]">
+                <form wire:submit="saveExpenseCategory" class="space-y-4">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                        {{ $editingExpenseCategoryId ? __('messages.edit_expense_category') : __('messages.add_expense_category') }}
+                    </h3>
+
+                    <div>
+                        <x-input-label for="expense_category_name" :value="__('messages.expense_category_name')" />
+                        <x-text-input wire:model="expense_category_name" id="expense_category_name" class="mt-1 block w-full" type="text" />
+                        <x-input-error :messages="$errors->get('expense_category_name')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <x-input-label for="expense_category_description" :value="__('messages.description')" />
+                        <textarea wire:model="expense_category_description" id="expense_category_description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"></textarea>
+                        <x-input-error :messages="$errors->get('expense_category_description')" class="mt-2" />
+                    </div>
+
+                    <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <input wire:model="expense_category_is_active" type="checkbox" class="rounded border-gray-300 text-red-700 shadow-sm focus:ring-red-600">
+                        <span>{{ __('messages.active') }}</span>
+                    </label>
+
+                    <div class="flex justify-end gap-2">
+                        @if ($editingExpenseCategoryId)
+                            <x-secondary-button type="button" wire:click="cancelExpenseCategoryEdit">{{ __('messages.cancel') }}</x-secondary-button>
+                        @endif
+                        <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                    </div>
+                </form>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                            <tr>
+                                <th class="px-4 py-3">{{ __('messages.expense_category') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.status') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.records') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @forelse ($allExpenseCategories as $expenseCategory)
+                                <tr>
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium text-gray-950">{{ $expenseCategory->name }}</div>
+                                        <div class="text-xs text-gray-500">{{ $expenseCategory->description ?: '-' }}</div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span @class([
+                                            'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
+                                            'bg-emerald-50 text-emerald-700' => $expenseCategory->is_active,
+                                            'bg-gray-100 text-gray-600' => ! $expenseCategory->is_active,
+                                        ])>
+                                            {{ $expenseCategory->is_active ? __('messages.active') : __('messages.inactive') }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600">
+                                        {{ __('messages.expenses') }}: {{ $expenseCategory->expenses_count }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex flex-wrap gap-3">
+                                            <button wire:click="editExpenseCategory({{ $expenseCategory->id }})" type="button" class="text-sm font-medium text-red-700 hover:text-red-900">
+                                                {{ __('messages.edit') }}
+                                            </button>
+                                            <button wire:click="toggleExpenseCategoryActive({{ $expenseCategory->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
+                                                {{ $expenseCategory->is_active ? __('messages.deactivate') : __('messages.activate') }}
+                                            </button>
+                                            <button wire:click="deleteExpenseCategory({{ $expenseCategory->id }})" wire:confirm="{{ __('messages.confirm_delete_expense_category') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                {{ __('messages.delete') }}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">{{ __('messages.no_expense_categories') }}</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 p-5">
+                <div class="flex flex-col gap-1">
+                    <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.expenses') }}</h2>
+                    <p class="text-sm text-gray-600">{{ __('messages.expenses_help') }}</p>
+                </div>
+            </div>
+
+            <div class="grid gap-6 p-5 lg:grid-cols-[0.95fr_1.4fr]">
+                <form wire:submit="saveExpense" class="space-y-4">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">
+                        {{ $editingExpenseId ? __('messages.edit_expense') : __('messages.record_expense') }}
+                    </h3>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-input-label for="expense_category_id" :value="__('messages.expense_category')" />
+                            <select wire:model="expense_category_id" id="expense_category_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                <option value="">{{ __('messages.select_expense_category') }}</option>
+                                @foreach ($expenseCategories as $expenseCategory)
+                                    <option value="{{ $expenseCategory->id }}">{{ $expenseCategory->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('expense_category_id')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="expense_amount" :value="__('messages.amount')" />
+                            <x-text-input wire:model="expense_amount" id="expense_amount" class="mt-1 block w-full" type="number" step="0.01" min="0" />
+                            <x-input-error :messages="$errors->get('expense_amount')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-input-label for="expense_date" :value="__('messages.expense_date')" />
+                            <x-text-input wire:model="expense_date" id="expense_date" class="mt-1 block w-full" type="date" />
+                            <x-input-error :messages="$errors->get('expense_date')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="paid_to" :value="__('messages.paid_to')" />
+                            <x-text-input wire:model="paid_to" id="paid_to" class="mt-1 block w-full" type="text" />
+                            <x-input-error :messages="$errors->get('paid_to')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <x-input-label for="expense_service_id" :value="__('messages.related_service')" />
+                        <select wire:model="expense_service_id" id="expense_service_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                            <option value="">{{ __('messages.no_service_selected') }}</option>
+                            @foreach ($services as $service)
+                                <option value="{{ $service->id }}">{{ $service->service_date?->format('Y-m-d') }} - {{ $service->title }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('expense_service_id')" class="mt-2" />
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-input-label for="expense_department_id" :value="__('messages.department')" />
+                            <select wire:model="expense_department_id" id="expense_department_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                <option value="">{{ __('messages.no_department_selected') }}</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->id }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('expense_department_id')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="expense_zone_id" :value="__('messages.zone')" />
+                            <select wire:model="expense_zone_id" id="expense_zone_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                <option value="">{{ __('messages.no_zone_selected') }}</option>
+                                @foreach ($zones as $zone)
+                                    <option value="{{ $zone->id }}">{{ $zone->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('expense_zone_id')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <x-input-label for="expense_reference_number" :value="__('messages.reference_number')" />
+                        <x-text-input wire:model="expense_reference_number" id="expense_reference_number" class="mt-1 block w-full" type="text" />
+                        <x-input-error :messages="$errors->get('expense_reference_number')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <x-input-label for="expense_notes" :value="__('messages.notes')" />
+                        <textarea wire:model="expense_notes" id="expense_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"></textarea>
+                        <x-input-error :messages="$errors->get('expense_notes')" class="mt-2" />
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        @if ($editingExpenseId)
+                            <x-secondary-button type="button" wire:click="cancelExpenseEdit">{{ __('messages.cancel') }}</x-secondary-button>
+                        @endif
+                        <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                    </div>
+                </form>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                            <tr>
+                                <th class="px-5 py-3">{{ __('messages.date') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.expense_category') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.context') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.amount') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @forelse ($expenses as $expense)
+                                <tr>
+                                    <td class="px-5 py-4 text-gray-600">
+                                        <div>{{ $expense->expense_date?->format('Y-m-d') }}</div>
+                                        <div class="text-xs text-gray-500">{{ $expense->reference_number ?: '-' }}</div>
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        <div class="font-medium text-gray-950">{{ $expense->expenseCategory?->name ?: '-' }}</div>
+                                        <div class="text-xs text-gray-500">{{ $expense->paid_to ?: '-' }}</div>
+                                    </td>
+                                    <td class="px-5 py-4 text-gray-600">
+                                        <div>{{ $expense->service?->title ?: '-' }}</div>
+                                        <div class="text-xs text-gray-500">
+                                            {{ $expense->department?->name ?: '-' }} / {{ $expense->zone?->name ?: '-' }}
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-4 font-medium text-red-700">
+                                        {{ __('messages.currency_tzs') }} {{ number_format((float) $expense->amount, 2) }}
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        <div class="flex flex-wrap gap-3">
+                                            <button wire:click="editExpense({{ $expense->id }})" type="button" class="text-sm font-medium text-red-700 hover:text-red-900">
+                                                {{ __('messages.edit') }}
+                                            </button>
+                                            <button wire:click="deleteExpense({{ $expense->id }})" wire:confirm="{{ __('messages.confirm_delete_expense') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                {{ __('messages.delete') }}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_expenses') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>

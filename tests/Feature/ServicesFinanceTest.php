@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Livewire\Finance\Index as FinanceIndex;
 use App\Livewire\Services\Index as ServicesIndex;
 use App\Models\Department;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\FinancialTransaction;
 use App\Models\IncomeCategory;
 use App\Models\Member;
@@ -259,6 +261,141 @@ class ServicesFinanceTest extends TestCase
         $this->assertDatabaseHas('income_categories', [
             'id' => $category->id,
         ]);
+    }
+
+    public function test_expense_categories_can_be_defined_edited_deactivated_and_deleted(): void
+    {
+        $user = User::factory()->create();
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->set('expense_category_name', 'Matumizi ya Makambi')
+            ->set('expense_category_description', 'Gharama za makambi')
+            ->call('saveExpenseCategory')
+            ->assertHasNoErrors()
+            ->assertDispatched('expense-category-created');
+
+        $category = ExpenseCategory::query()->where('name', 'Matumizi ya Makambi')->firstOrFail();
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->call('editExpenseCategory', $category->id)
+            ->set('expense_category_name', 'Matumizi ya Vijana')
+            ->set('expense_category_is_active', false)
+            ->call('saveExpenseCategory')
+            ->assertHasNoErrors()
+            ->assertDispatched('expense-category-updated');
+
+        $this->assertDatabaseHas('expense_categories', [
+            'id' => $category->id,
+            'name' => 'Matumizi ya Vijana',
+            'slug' => 'matumizi-ya-vijana',
+            'is_active' => false,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->call('toggleExpenseCategoryActive', $category->id);
+
+        $this->assertDatabaseHas('expense_categories', [
+            'id' => $category->id,
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->call('deleteExpenseCategory', $category->id)
+            ->assertDispatched('expense-category-deleted');
+
+        $this->assertDatabaseMissing('expense_categories', [
+            'id' => $category->id,
+        ]);
+    }
+
+    public function test_expenses_can_be_recorded_edited_and_deleted(): void
+    {
+        $user = User::factory()->create();
+        $category = ExpenseCategory::create([
+            'name' => 'Matengenezo',
+            'slug' => 'matengenezo',
+        ]);
+        $department = Department::create([
+            'name' => 'Maendeleo',
+            'slug' => 'maendeleo',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->set('expense_category_id', $category->id)
+            ->set('expense_department_id', $department->id)
+            ->set('expense_amount', '45000')
+            ->set('expense_date', '2026-05-29')
+            ->set('paid_to', 'Fundi')
+            ->set('expense_reference_number', 'EXP-001')
+            ->call('saveExpense')
+            ->assertHasNoErrors()
+            ->assertDispatched('expense-created');
+
+        $expense = Expense::query()->where('reference_number', 'EXP-001')->firstOrFail();
+
+        $this->assertSame($user->id, $expense->recorded_by_user_id);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->call('editExpense', $expense->id)
+            ->set('expense_amount', '50000')
+            ->call('saveExpense')
+            ->assertHasNoErrors()
+            ->assertDispatched('expense-updated');
+
+        $this->assertDatabaseHas('expenses', [
+            'id' => $expense->id,
+            'amount' => '50000.00',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->call('deleteExpense', $expense->id)
+            ->assertDispatched('expense-deleted');
+
+        $this->assertDatabaseMissing('expenses', [
+            'id' => $expense->id,
+        ]);
+    }
+
+    public function test_expense_category_with_expenses_cannot_be_deleted_and_dashboard_cash_is_net(): void
+    {
+        $user = User::factory()->create();
+        $incomeCategory = IncomeCategory::create([
+            'name' => 'Sadaka',
+            'slug' => 'sadaka',
+        ]);
+        $expenseCategory = ExpenseCategory::create([
+            'name' => 'Matengenezo',
+            'slug' => 'matengenezo',
+        ]);
+
+        FinancialTransaction::create([
+            'income_category_id' => $incomeCategory->id,
+            'amount' => 100000,
+            'transaction_date' => '2026-05-29',
+        ]);
+
+        Expense::create([
+            'expense_category_id' => $expenseCategory->id,
+            'amount' => 30000,
+            'expense_date' => '2026-05-29',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->call('deleteExpenseCategory', $expenseCategory->id)
+            ->assertHasErrors('expense_category_action');
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('TZS 70,000.00');
     }
 
     public function test_pledges_can_be_paid_in_installments_until_completed(): void

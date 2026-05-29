@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Department;
 use App\Models\DepartmentPosition;
+use App\Models\ExpenseCategory;
 use App\Models\IncomeCategory;
 use App\Models\LeadershipTitle;
 use App\Models\Member;
@@ -230,6 +231,16 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Sadaka ya Kanda', 'slug' => 'sadaka-ya-zone'],
             ['name' => 'Sadaka ya Idara', 'slug' => 'sadaka-ya-idara'],
         ])->each(fn (array $category) => IncomeCategory::firstOrCreate(['slug' => $category['slug']], $category));
+
+        collect([
+            ['name' => 'Matumizi ya Ibada', 'slug' => 'matumizi-ya-ibada'],
+            ['name' => 'Matumizi ya Idara', 'slug' => 'matumizi-ya-idara'],
+            ['name' => 'Matumizi ya Kanda', 'slug' => 'matumizi-ya-kanda'],
+            ['name' => 'Huduma na Uendeshaji', 'slug' => 'huduma-na-uendeshaji'],
+            ['name' => 'Matengenezo', 'slug' => 'matengenezo'],
+            ['name' => 'Usafiri', 'slug' => 'usafiri'],
+            ['name' => 'Misaada', 'slug' => 'misaada'],
+        ])->each(fn (array $category) => ExpenseCategory::firstOrCreate(['slug' => $category['slug']], $category));
 
         $admin = User::firstOrCreate(
             ['email' => 'admin@tag-cicc.or.tz'],
