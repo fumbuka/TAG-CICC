@@ -109,4 +109,69 @@ class DashboardTest extends TestCase
             ->assertSee('3')
             ->assertSee('1');
     }
+
+    public function test_dashboard_shows_weekly_duty_to_user_without_calendar_manage_permission(): void
+    {
+        $user = User::factory()->create();
+
+        $elder = Member::create([
+            'first_name' => 'Mzee',
+            'last_name' => 'Baraka',
+            'gender' => 'male',
+            'date_of_birth' => '1970-01-01',
+        ]);
+
+        $deacon = Member::create([
+            'first_name' => 'Shemasi',
+            'last_name' => 'Neema',
+            'gender' => 'female',
+            'date_of_birth' => '1985-01-01',
+        ]);
+
+        WeeklyDuty::create([
+            'week_start' => now()->startOfWeek()->toDateString(),
+            'week_end' => now()->endOfWeek()->toDateString(),
+            'elder_member_id' => $elder->id,
+            'deacon_member_id' => $deacon->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('Mzee Baraka')
+            ->assertSee('Shemasi Neema');
+    }
+
+    public function test_dashboard_shows_next_weekly_duty_when_current_duty_is_not_assigned(): void
+    {
+        $user = User::factory()->create();
+
+        $elder = Member::create([
+            'first_name' => 'Mzee',
+            'last_name' => 'Eliakim',
+            'gender' => 'male',
+            'date_of_birth' => '1965-01-01',
+        ]);
+
+        $deacon = Member::create([
+            'first_name' => 'Shemasi',
+            'last_name' => 'Upendo',
+            'gender' => 'female',
+            'date_of_birth' => '1988-01-01',
+        ]);
+
+        WeeklyDuty::create([
+            'week_start' => now()->addWeek()->startOfWeek()->toDateString(),
+            'week_end' => now()->addWeek()->endOfWeek()->toDateString(),
+            'elder_member_id' => $elder->id,
+            'deacon_member_id' => $deacon->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertSee('Mzee Eliakim')
+            ->assertSee('Shemasi Upendo')
+            ->assertSee(__('messages.next_weekly_duty'));
+    }
 }

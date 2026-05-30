@@ -12,12 +12,14 @@ use App\Models\User;
 use App\Models\WeeklyDuty;
 use App\Models\Zone;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
     public function __invoke(): View
     {
         $today = now()->startOfDay();
+        $weeklyDuty = $this->weeklyDutyForDashboard($today);
 
         return view('dashboard', [
             'memberCount' => Member::query()->count(),
@@ -36,13 +38,28 @@ class DashboardController extends Controller
                 ->orderBy('starts_at')
                 ->limit(3)
                 ->get(),
-            'weeklyDuty' => WeeklyDuty::query()
-                ->with(['elder', 'deacon'])
-                ->where('is_active', true)
-                ->whereDate('week_start', '<=', $today->toDateString())
-                ->whereDate('week_end', '>=', $today->toDateString())
-                ->latest('week_start')
-                ->first(),
+            'weeklyDuty' => $weeklyDuty,
+            'weeklyDutyIsCurrent' => $weeklyDuty !== null
+                && $weeklyDuty->week_start?->lte($today)
+                && $weeklyDuty->week_end?->gte($today),
         ]);
+    }
+
+    private function weeklyDutyForDashboard(Carbon $today): ?WeeklyDuty
+    {
+        $baseQuery = WeeklyDuty::query()
+            ->with(['elder', 'deacon'])
+            ->where('is_active', true);
+
+        $currentDuty = (clone $baseQuery)
+            ->whereDate('week_start', '<=', $today->toDateString())
+            ->whereDate('week_end', '>=', $today->toDateString())
+            ->latest('week_start')
+            ->first();
+
+        return $currentDuty ?: (clone $baseQuery)
+            ->whereDate('week_start', '>', $today->toDateString())
+            ->orderBy('week_start')
+            ->first();
     }
 }

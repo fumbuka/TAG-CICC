@@ -119,28 +119,36 @@
                     </div>
                 </section>
 
-                @can('calendar.manage')
-                    <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md">
+                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-red-200 hover:shadow-md">
+                    <div class="flex items-start justify-between gap-4">
                         <p class="text-sm font-medium text-gray-500">{{ __('messages.weekly_leadership_duty') }}</p>
-                        <div class="mt-5 space-y-4">
-                            <div>
-                                <p class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.elder_on_duty') }}</p>
-                                <p class="mt-1 text-xl font-semibold text-gray-950">{{ $formatMemberName($weeklyDuty?->elder) }}</p>
-                            </div>
-                            <div class="border-t border-gray-100 pt-4">
-                                <p class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.deacon_on_duty') }}</p>
-                                <p class="mt-1 text-xl font-semibold text-gray-950">{{ $formatMemberName($weeklyDuty?->deacon) }}</p>
-                            </div>
-                            <p class="text-sm text-gray-500">
-                                @if ($weeklyDuty)
-                                    {{ $weeklyDuty->week_start?->translatedFormat('d M') }} - {{ $weeklyDuty->week_end?->translatedFormat('d M Y') }}
-                                @else
-                                    {{ __('messages.no_weekly_duty_assigned') }}
-                                @endif
-                            </p>
+                        @can('calendar.manage')
+                            <a href="{{ route('calendar.index') }}" wire:navigate class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
+                                {{ __('messages.calendar') }}
+                            </a>
+                        @endcan
+                    </div>
+                    <div class="mt-5 space-y-4">
+                        <div>
+                            <p class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.elder_on_duty') }}</p>
+                            <p class="mt-1 text-xl font-semibold text-gray-950">{{ $formatMemberName($weeklyDuty?->elder) }}</p>
                         </div>
-                    </a>
-                @endcan
+                        <div class="border-t border-gray-100 pt-4">
+                            <p class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.deacon_on_duty') }}</p>
+                            <p class="mt-1 text-xl font-semibold text-gray-950">{{ $formatMemberName($weeklyDuty?->deacon) }}</p>
+                        </div>
+                        <p class="text-sm text-gray-500">
+                            @if ($weeklyDuty)
+                                @unless ($weeklyDutyIsCurrent)
+                                    <span class="font-medium text-red-700">{{ __('messages.next_weekly_duty') }}:</span>
+                                @endunless
+                                {{ $weeklyDuty->week_start?->translatedFormat('d M') }} - {{ $weeklyDuty->week_end?->translatedFormat('d M Y') }}
+                            @else
+                                {{ __('messages.no_weekly_duty_assigned') }}
+                            @endif
+                        </p>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
