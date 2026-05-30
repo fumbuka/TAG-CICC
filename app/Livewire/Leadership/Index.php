@@ -7,8 +7,10 @@ use App\Models\LeadershipTitle;
 use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\Zone;
+use App\Support\LeadershipSystemAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
@@ -42,6 +44,9 @@ class Index extends Component
     public bool $assignment_is_active = true;
 
     public string $assignment_notes = '';
+
+    /** @var array<string, mixed>|null */
+    public ?array $accessCredentials = null;
 
     public function saveTitle(): void
     {
@@ -109,7 +114,7 @@ class Index extends Component
         ]);
     }
 
-    public function saveAssignment(): void
+    public function saveAssignment(LeadershipSystemAccess $systemAccess): void
     {
         $validated = $this->validate([
             'member_id' => ['required', 'integer', Rule::exists('members', 'id')],
@@ -149,10 +154,29 @@ class Index extends Component
         ];
 
         $wasEditing = $this->editingAssignmentId !== null;
+        $accessCredentials = null;
 
-        $wasEditing
-            ? MemberLeadershipAssignment::findOrFail($this->editingAssignmentId)->update($attributes)
-            : MemberLeadershipAssignment::create($attributes);
+        DB::transaction(function () use ($attributes, $systemAccess, $title, &$accessCredentials): void {
+            $this->editingAssignmentId
+                ? MemberLeadershipAssignment::findOrFail($this->editingAssignmentId)->update($attributes)
+                : MemberLeadershipAssignment::create($attributes);
+
+            if ($attributes['is_active']) {
+                $accessCredentials = $systemAccess->grant(
+                    Member::findOrFail($attributes['member_id']),
+                    $title,
+                );
+            }
+        });
+
+        $this->accessCredentials = $accessCredentials ? [
+            'name' => $accessCredentials['user']->name,
+            'email' => $accessCredentials['email'],
+            'phone_number' => $accessCredentials['phone_number'],
+            'password' => $accessCredentials['password'],
+            'role_name' => $accessCredentials['role_name'],
+            'created' => $accessCredentials['created'],
+        ] : null;
 
         $this->resetAssignmentForm();
 

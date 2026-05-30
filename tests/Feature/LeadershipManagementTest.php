@@ -9,6 +9,7 @@ use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -77,6 +78,49 @@ class LeadershipManagementTest extends TestCase
             'department_id' => $department->id,
             'assigned_by_user_id' => $user->id,
         ]);
+    }
+
+    public function test_assigning_leadership_creates_member_login_credentials(): void
+    {
+        $admin = User::factory()->create();
+        $member = Member::create([
+            'first_name' => 'Neema',
+            'middle_name' => 'Grace',
+            'last_name' => 'Adam',
+            'gender' => 'female',
+            'date_of_birth' => '1990-01-01',
+            'email' => 'neema.adam@tag-cicc.or.tz',
+            'phone_number' => '0654849299',
+        ]);
+        $department = Department::create([
+            'name' => 'Maendeleo',
+            'slug' => 'maendeleo',
+        ]);
+        $title = LeadershipTitle::create([
+            'name' => 'Katibu wa Idara',
+            'slug' => 'katibu-wa-idara',
+            'scope' => 'department',
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(LeadershipIndex::class)
+            ->set('member_id', $member->id)
+            ->set('leadership_title_id', $title->id)
+            ->set('department_id', $department->id)
+            ->call('saveAssignment')
+            ->assertHasNoErrors()
+            ->assertDispatched('assignment-created')
+            ->assertSet('accessCredentials.role_name', 'Katibu wa Idara')
+            ->assertSet('accessCredentials.email', 'neema.adam@tag-cicc.or.tz')
+            ->assertSee('Credentials za kiongozi zimetengenezwa.');
+
+        $credentials = $component->get('accessCredentials');
+        $user = User::query()->where('email', 'neema.adam@tag-cicc.or.tz')->firstOrFail();
+
+        $this->assertSame($user->id, $member->refresh()->user_id);
+        $this->assertSame('0654849299', $user->phone_number);
+        $this->assertTrue($user->hasRole('Katibu wa Idara'));
+        $this->assertTrue(Hash::check($credentials['password'], $user->password));
     }
 
     public function test_department_level_title_requires_department(): void

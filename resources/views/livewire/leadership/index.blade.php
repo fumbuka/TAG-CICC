@@ -22,6 +22,47 @@
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
+        @if ($accessCredentials)
+            <section class="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <h2 class="text-base font-semibold text-amber-950">
+                            {{ $accessCredentials['created'] ? __('messages.leader_access_created') : __('messages.leader_access_updated') }}
+                        </h2>
+                        <p class="mt-1 text-sm text-amber-800">
+                            {{ $accessCredentials['created'] ? __('messages.leader_access_created_help') : __('messages.leader_access_updated_help') }}
+                        </p>
+                    </div>
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-amber-800 shadow-sm">{{ $accessCredentials['role_name'] }}</span>
+                </div>
+
+                <dl @class([
+                    'mt-4 grid gap-3 text-sm',
+                    'md:grid-cols-4' => $accessCredentials['password'],
+                    'md:grid-cols-3' => ! $accessCredentials['password'],
+                ])>
+                    <div class="rounded-md bg-white p-3 shadow-sm">
+                        <dt class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.name') }}</dt>
+                        <dd class="mt-1 font-medium text-gray-950">{{ $accessCredentials['name'] }}</dd>
+                    </div>
+                    <div class="rounded-md bg-white p-3 shadow-sm">
+                        <dt class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.email') }}</dt>
+                        <dd class="mt-1 break-all font-mono text-gray-950">{{ $accessCredentials['email'] }}</dd>
+                    </div>
+                    <div class="rounded-md bg-white p-3 shadow-sm">
+                        <dt class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.phone') }}</dt>
+                        <dd class="mt-1 font-mono text-gray-950">{{ $accessCredentials['phone_number'] ?: '-' }}</dd>
+                    </div>
+                    @if ($accessCredentials['password'])
+                        <div class="rounded-md bg-white p-3 shadow-sm">
+                            <dt class="text-xs font-semibold uppercase text-gray-500">{{ __('messages.temporary_password') }}</dt>
+                            <dd class="mt-1 font-mono font-semibold text-gray-950">{{ $accessCredentials['password'] }}</dd>
+                        </div>
+                    @endif
+                </dl>
+            </section>
+        @endif
+
         <div class="grid gap-6 lg:grid-cols-2">
             <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">

@@ -92,7 +92,18 @@ class DatabaseSeeder extends Seeder
                 'services.manage',
                 'reports.submit',
             ],
+            'Makamu Mkurugenzi wa Idara' => [
+                'dashboard.view',
+                'members.view',
+                'reports.submit',
+            ],
             'Katibu wa Idara' => [
+                'dashboard.view',
+                'members.view',
+                'calendar.submit',
+                'reports.submit',
+            ],
+            'Makamu Katibu wa Idara' => [
                 'dashboard.view',
                 'members.view',
                 'calendar.submit',
