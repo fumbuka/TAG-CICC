@@ -12,6 +12,7 @@ use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 class MembershipManagementTest extends TestCase
@@ -26,6 +27,11 @@ class MembershipManagementTest extends TestCase
     public function test_bulk_import_templates_can_be_downloaded(): void
     {
         $user = User::factory()->create();
+        collect(['members.import', 'departments.manage', 'zones.manage'])->each(fn (string $permission) => Permission::create([
+            'name' => $permission,
+            'guard_name' => 'web',
+        ]));
+        $user->givePermissionTo(['members.import', 'departments.manage', 'zones.manage']);
 
         foreach (['members', 'departments', 'zones'] as $type) {
             $this->actingAs($user)
@@ -38,6 +44,11 @@ class MembershipManagementTest extends TestCase
     public function test_members_page_can_be_rendered(): void
     {
         $user = User::factory()->create();
+        Permission::create([
+            'name' => 'members.view',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('members.view');
 
         $this->actingAs($user)
             ->get('/members')

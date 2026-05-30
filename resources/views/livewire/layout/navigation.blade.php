@@ -38,26 +38,36 @@ new class extends Component
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('messages.dashboard') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
-                        {{ __('messages.members') }}
-                    </x-nav-link>
+                    @can('members.view')
+                        <x-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
+                            {{ __('messages.members') }}
+                        </x-nav-link>
+                    @endcan
                     @can('visitors.manage')
                         <x-nav-link :href="route('visitors.index')" :active="request()->routeIs('visitors.*')" wire:navigate>
                             {{ __('messages.visitors') }}
                         </x-nav-link>
                     @endcan
-                    <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
-                        {{ __('messages.departments') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
-                        {{ __('messages.zones') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
-                        {{ __('messages.services') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
-                        {{ __('messages.finance') }}
-                    </x-nav-link>
+                    @can('departments.manage')
+                        <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
+                            {{ __('messages.departments') }}
+                        </x-nav-link>
+                    @endcan
+                    @can('zones.manage')
+                        <x-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
+                            {{ __('messages.zones') }}
+                        </x-nav-link>
+                    @endcan
+                    @can('services.manage')
+                        <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
+                            {{ __('messages.services') }}
+                        </x-nav-link>
+                    @endcan
+                    @canany(['finance.view', 'finance.record'])
+                        <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
+                            {{ __('messages.finance') }}
+                        </x-nav-link>
+                    @endcanany
                     @canany(['calendar.manage', 'calendar.submit'])
                         <x-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
                             {{ __('messages.calendar') }}
@@ -138,26 +148,36 @@ new class extends Component
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                 {{ __('messages.dashboard') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
-                {{ __('messages.members') }}
-            </x-responsive-nav-link>
+            @can('members.view')
+                <x-responsive-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
+                    {{ __('messages.members') }}
+                </x-responsive-nav-link>
+            @endcan
             @can('visitors.manage')
                 <x-responsive-nav-link :href="route('visitors.index')" :active="request()->routeIs('visitors.*')" wire:navigate>
                     {{ __('messages.visitors') }}
                 </x-responsive-nav-link>
             @endcan
-            <x-responsive-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
-                {{ __('messages.departments') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
-                {{ __('messages.zones') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
-                {{ __('messages.services') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
-                {{ __('messages.finance') }}
-            </x-responsive-nav-link>
+            @can('departments.manage')
+                <x-responsive-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
+                    {{ __('messages.departments') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('zones.manage')
+                <x-responsive-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
+                    {{ __('messages.zones') }}
+                </x-responsive-nav-link>
+            @endcan
+            @can('services.manage')
+                <x-responsive-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
+                    {{ __('messages.services') }}
+                </x-responsive-nav-link>
+            @endcan
+            @canany(['finance.view', 'finance.record'])
+                <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
+                    {{ __('messages.finance') }}
+                </x-responsive-nav-link>
+            @endcanany
             @canany(['calendar.manage', 'calendar.submit'])
                 <x-responsive-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
                     {{ __('messages.calendar') }}

@@ -53,15 +53,24 @@ Route::post('logout', function (Request $request) {
 
 Route::middleware(['auth'])->group(function () {
     Route::get('bulk-import-templates/{type}', BulkImportTemplateController::class)
+        ->middleware('permission:members.import|departments.manage|zones.manage')
         ->name('bulk-import-templates.download');
 
-    Route::get('members', MembersIndex::class)->name('members.index');
+    Route::get('members', MembersIndex::class)
+        ->middleware('permission:members.view')
+        ->name('members.index');
     Route::get('visitors', VisitorsIndex::class)
         ->middleware('permission:visitors.manage')
         ->name('visitors.index');
-    Route::get('departments', DepartmentsIndex::class)->name('departments.index');
-    Route::get('zones', ZonesIndex::class)->name('zones.index');
-    Route::get('services', ServicesIndex::class)->name('services.index');
+    Route::get('departments', DepartmentsIndex::class)
+        ->middleware('permission:departments.manage')
+        ->name('departments.index');
+    Route::get('zones', ZonesIndex::class)
+        ->middleware('permission:zones.manage')
+        ->name('zones.index');
+    Route::get('services', ServicesIndex::class)
+        ->middleware('permission:services.manage')
+        ->name('services.index');
     Route::get('finance', FinanceIndex::class)
         ->middleware('permission:finance.view|finance.record')
         ->name('finance.index');
