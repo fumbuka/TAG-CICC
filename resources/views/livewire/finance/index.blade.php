@@ -8,7 +8,7 @@
             </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div id="finance-summary" class="scroll-mt-24 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.today_total') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $todayTotal, 2) }}</p>
@@ -77,7 +77,7 @@
         @endunless
 
         @if ($canRecordFinance)
-        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section id="income-categories" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.manage_income_categories') }}</h2>
@@ -173,7 +173,7 @@
         @endif
 
         @if ($canRecordFinance)
-        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section id="expense-categories" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.manage_expense_categories') }}</h2>
@@ -267,7 +267,7 @@
         </section>
         @endif
 
-        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section id="expenses" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.expenses') }}</h2>
@@ -431,7 +431,7 @@
             </div>
         </section>
 
-        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section id="pledges" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.pledges') }}</h2>
@@ -742,7 +742,8 @@
             </div>
         </section>
 
-        <div @class([
+        <div id="transactions" @class([
+            'scroll-mt-24',
             'grid gap-6',
             'lg:grid-cols-[0.95fr_1.4fr]' => $canRecordFinance,
         ])>

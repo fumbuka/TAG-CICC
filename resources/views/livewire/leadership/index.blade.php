@@ -64,7 +64,7 @@
         @endif
 
         <div class="grid gap-6 lg:grid-cols-2">
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <section id="leadership-title-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingTitleId ? __('messages.edit_leadership_title') : __('messages.add_leadership_title') }}
                 </h2>
@@ -101,7 +101,7 @@
                 </form>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <section id="assign-leadership" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingAssignmentId ? __('messages.edit_leadership_assignment') : __('messages.assign_leadership') }}
                 </h2>
@@ -189,7 +189,7 @@
         </div>
 
         <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section id="leadership-titles" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.leadership_titles') }}</h2>
                 </div>
@@ -234,7 +234,7 @@
                 </div>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section id="leadership-assignments" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.leadership_assignments') }}</h2>
                 </div>

@@ -19,19 +19,21 @@
         <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(220,38,38,0.08),transparent_30rem),linear-gradient(180deg,#ffffff_0%,#f8fafc_18rem,#f3f4f6_100%)]">
             <livewire:layout.navigation />
 
-            <!-- Page Heading -->
-            @if (isset($header))
-                <header class="border-b border-gray-200 bg-white/85 shadow-sm backdrop-blur">
-                    <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {{ $header }}
-                    </div>
-                </header>
-            @endif
+            <div class="lg:pl-72">
+                <!-- Page Heading -->
+                @if (isset($header))
+                    <header class="border-b border-gray-200 bg-white/85 shadow-sm backdrop-blur">
+                        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                            {{ $header }}
+                        </div>
+                    </header>
+                @endif
 
-            <!-- Page Content -->
-            <main>
-                {{ $slot }}
-            </main>
+                <!-- Page Content -->
+                <main>
+                    {{ $slot }}
+                </main>
+            </div>
         </div>
     </body>
 </html>

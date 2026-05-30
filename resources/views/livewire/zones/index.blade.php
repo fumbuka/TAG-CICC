@@ -21,7 +21,7 @@
         @enderror
 
         <div class="grid gap-6 lg:grid-cols-[0.75fr_1.4fr]">
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <section id="zone-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingZoneId ? __('messages.edit_zone') : __('messages.add_zone') }}
                 </h2>
@@ -48,7 +48,7 @@
                 </form>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section id="zones-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.existing_zones') }}</h2>
                 </div>
@@ -99,6 +99,7 @@
         </div>
 
         <section
+            id="bulk-import-zones"
             x-data="{ uploading: false, progress: 0 }"
             x-on:livewire-upload-start="uploading = true; progress = 0"
             x-on:livewire-upload-progress="progress = $event.detail.progress"

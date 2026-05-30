@@ -19,7 +19,7 @@
         @enderror
 
         <div class="grid gap-6 lg:grid-cols-[0.85fr_1.4fr]">
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <section id="grant-access" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingUserId ? __('messages.edit_user') : __('messages.add_user') }}
                 </h2>
@@ -83,7 +83,7 @@
                 </form>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section id="users-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.users_list') }}</h2>

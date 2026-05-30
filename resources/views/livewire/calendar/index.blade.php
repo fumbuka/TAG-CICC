@@ -28,7 +28,7 @@
             'grid gap-6',
             'lg:grid-cols-2' => $canManageCalendar,
         ])>
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <section id="calendar-event-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingEventId ? __('messages.edit_event') : __('messages.add_event') }}
                 </h2>
@@ -126,7 +126,7 @@
             </section>
 
             @if ($canManageCalendar)
-                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <section id="weekly-duty-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                     <h2 class="text-lg font-semibold text-gray-950">
                         {{ $editingDutyId ? __('messages.edit_weekly_duty') : __('messages.add_weekly_duty') }}
                     </h2>
@@ -196,7 +196,7 @@
             'grid gap-6',
             'lg:grid-cols-[1.1fr_0.9fr]' => $canManageCalendar,
         ])>
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section id="calendar-events-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.calendar_events') }}</h2>
                 </div>
@@ -272,7 +272,7 @@
             </section>
 
             @if ($canManageCalendar)
-                <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <section id="weekly-duties" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.weekly_duties') }}</h2>
                 </div>

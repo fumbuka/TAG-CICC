@@ -38,7 +38,7 @@
         @enderror
 
         <div class="grid gap-6 lg:grid-cols-[0.9fr_1.4fr]">
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <section id="visitor-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingVisitorId ? __('messages.edit_visitor') : __('messages.register_visitor') }}
                 </h2>
@@ -114,7 +114,7 @@
                 </form>
             </section>
 
-            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <section id="visitors-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.visitors_list') }}</h2>

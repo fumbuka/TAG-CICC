@@ -16,218 +16,248 @@ new class extends Component
     }
 }; ?>
 
-<nav x-data="{ open: false }" class="sticky top-0 z-40 border-b border-gray-200 bg-white/90 shadow-sm backdrop-blur">
-    <div class="h-1 bg-gradient-to-r from-red-700 via-yellow-400 to-red-700"></div>
-    <!-- Primary Navigation Menu -->
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3">
-                        <x-application-logo class="h-11 w-11" />
-                        <div class="hidden leading-tight lg:block">
-                            <p class="text-sm font-bold tracking-wide text-gray-950">{{ __('messages.app_name') }}</p>
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-red-700">City Impact</p>
-                        </div>
-                    </a>
-                </div>
+@php
+    $user = auth()->user();
+    $can = fn (string|array $abilities): bool => collect((array) $abilities)->contains(fn (string $ability): bool => $user?->can($ability) ?? false);
 
-                <!-- Navigation Links -->
-                <div class="hidden space-x-4 sm:-my-px sm:ms-6 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('messages.dashboard') }}
-                    </x-nav-link>
-                    @can('members.view')
-                        <x-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
-                            {{ __('messages.members') }}
-                        </x-nav-link>
-                    @endcan
-                    @can('visitors.manage')
-                        <x-nav-link :href="route('visitors.index')" :active="request()->routeIs('visitors.*')" wire:navigate>
-                            {{ __('messages.visitors') }}
-                        </x-nav-link>
-                    @endcan
-                    @can('departments.manage')
-                        <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
-                            {{ __('messages.departments') }}
-                        </x-nav-link>
-                    @endcan
-                    @can('zones.manage')
-                        <x-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
-                            {{ __('messages.zones') }}
-                        </x-nav-link>
-                    @endcan
-                    @can('services.manage')
-                        <x-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
-                            {{ __('messages.services') }}
-                        </x-nav-link>
-                    @endcan
-                    @canany(['finance.view', 'finance.record'])
-                        <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
-                            {{ __('messages.finance') }}
-                        </x-nav-link>
-                    @endcanany
-                    @canany(['calendar.manage', 'calendar.submit'])
-                        <x-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
-                            {{ __('messages.calendar') }}
-                        </x-nav-link>
-                    @endcanany
-                    @canany(['reports.view', 'reports.submit', 'reports.approve'])
-                        <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')" wire:navigate>
-                            {{ __('messages.reports') }}
-                        </x-nav-link>
-                    @endcanany
-                    @can('leadership.manage')
-                        <x-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
-                            {{ __('messages.leadership') }}
-                        </x-nav-link>
-                    @endcan
-                    @can('users.manage')
-                        <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')" wire:navigate>
-                            {{ __('messages.users') }}
-                        </x-nav-link>
-                    @endcan
-                </div>
-            </div>
+    $navGroups = [
+        [
+            'label' => __('messages.overview'),
+            'items' => [
+                [
+                    'label' => __('messages.dashboard'),
+                    'href' => route('dashboard'),
+                    'active' => request()->routeIs('dashboard'),
+                    'visible' => true,
+                    'icon' => 'dashboard',
+                    'children' => [],
+                ],
+            ],
+        ],
+        [
+            'label' => __('messages.membership'),
+            'items' => [
+                [
+                    'label' => __('messages.members'),
+                    'href' => route('members.index'),
+                    'active' => request()->routeIs('members.*'),
+                    'visible' => $can('members.view'),
+                    'icon' => 'people',
+                    'children' => [
+                        ['label' => __('messages.register_member'), 'href' => route('members.index').'#register-member'],
+                        ['label' => __('messages.members_list'), 'href' => route('members.index').'#members-list'],
+                        ['label' => __('messages.bulk_import_members'), 'href' => route('members.index').'#bulk-import-members'],
+                    ],
+                ],
+                [
+                    'label' => __('messages.visitors'),
+                    'href' => route('visitors.index'),
+                    'active' => request()->routeIs('visitors.*'),
+                    'visible' => $can('visitors.manage'),
+                    'icon' => 'visitors',
+                    'children' => [
+                        ['label' => __('messages.register_visitor'), 'href' => route('visitors.index').'#visitor-form'],
+                        ['label' => __('messages.visitors_list'), 'href' => route('visitors.index').'#visitors-list'],
+                    ],
+                ],
+                [
+                    'label' => __('messages.departments'),
+                    'href' => route('departments.index'),
+                    'active' => request()->routeIs('departments.*'),
+                    'visible' => $can('departments.manage'),
+                    'icon' => 'departments',
+                    'children' => [
+                        ['label' => __('messages.add_department'), 'href' => route('departments.index').'#department-form'],
+                        ['label' => __('messages.existing_departments'), 'href' => route('departments.index').'#departments-list'],
+                        ['label' => __('messages.bulk_import_departments'), 'href' => route('departments.index').'#bulk-import-departments'],
+                    ],
+                ],
+                [
+                    'label' => __('messages.zones'),
+                    'href' => route('zones.index'),
+                    'active' => request()->routeIs('zones.*'),
+                    'visible' => $can('zones.manage'),
+                    'icon' => 'zones',
+                    'children' => [
+                        ['label' => __('messages.add_zone'), 'href' => route('zones.index').'#zone-form'],
+                        ['label' => __('messages.existing_zones'), 'href' => route('zones.index').'#zones-list'],
+                        ['label' => __('messages.bulk_import_zones'), 'href' => route('zones.index').'#bulk-import-zones'],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'label' => __('messages.operations'),
+            'items' => [
+                [
+                    'label' => __('messages.services'),
+                    'href' => route('services.index'),
+                    'active' => request()->routeIs('services.*'),
+                    'visible' => $can('services.manage'),
+                    'icon' => 'services',
+                    'children' => [
+                        ['label' => __('messages.record_service'), 'href' => route('services.index').'#record-service'],
+                        ['label' => __('messages.services_list'), 'href' => route('services.index').'#services-list'],
+                    ],
+                ],
+                [
+                    'label' => __('messages.calendar'),
+                    'href' => route('calendar.index'),
+                    'active' => request()->routeIs('calendar.*'),
+                    'visible' => $can(['calendar.manage', 'calendar.submit']),
+                    'icon' => 'calendar',
+                    'children' => [
+                        ['label' => __('messages.add_event'), 'href' => route('calendar.index').'#calendar-event-form'],
+                        ['label' => __('messages.calendar_events'), 'href' => route('calendar.index').'#calendar-events-list'],
+                        ['label' => __('messages.weekly_duties'), 'href' => route('calendar.index').'#weekly-duties'],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'label' => __('messages.finance'),
+            'items' => [
+                [
+                    'label' => __('messages.finance'),
+                    'href' => route('finance.index'),
+                    'active' => request()->routeIs('finance.*'),
+                    'visible' => $can(['finance.view', 'finance.record']),
+                    'icon' => 'finance',
+                    'children' => [
+                        ['label' => __('messages.income_category'), 'href' => route('finance.index').'#income-categories'],
+                        ['label' => __('messages.expense_category'), 'href' => route('finance.index').'#expense-categories'],
+                        ['label' => __('messages.expenses'), 'href' => route('finance.index').'#expenses'],
+                        ['label' => __('messages.pledges'), 'href' => route('finance.index').'#pledges'],
+                        ['label' => __('messages.transactions'), 'href' => route('finance.index').'#transactions'],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'label' => __('messages.reports'),
+            'items' => [
+                [
+                    'label' => __('messages.reports'),
+                    'href' => route('reports.index'),
+                    'active' => request()->routeIs('reports.*'),
+                    'visible' => $can(['reports.view', 'reports.submit', 'reports.approve']),
+                    'icon' => 'reports',
+                    'children' => [
+                        ['label' => __('messages.submit_event_report'), 'href' => route('reports.index').'#submit-report'],
+                        ['label' => __('messages.event_reports'), 'href' => route('reports.index').'#event-reports'],
+                    ],
+                ],
+            ],
+        ],
+        [
+            'label' => __('messages.administration'),
+            'items' => [
+                [
+                    'label' => __('messages.leadership'),
+                    'href' => route('leadership.index'),
+                    'active' => request()->routeIs('leadership.*'),
+                    'visible' => $can('leadership.manage'),
+                    'icon' => 'leadership',
+                    'children' => [
+                        ['label' => __('messages.leadership_titles'), 'href' => route('leadership.index').'#leadership-titles'],
+                        ['label' => __('messages.assign_leadership'), 'href' => route('leadership.index').'#assign-leadership'],
+                        ['label' => __('messages.leadership_assignments'), 'href' => route('leadership.index').'#leadership-assignments'],
+                    ],
+                ],
+                [
+                    'label' => __('messages.users'),
+                    'href' => route('users.index'),
+                    'active' => request()->routeIs('users.*'),
+                    'visible' => $can('users.manage'),
+                    'icon' => 'users',
+                    'children' => [
+                        ['label' => __('messages.add_user'), 'href' => route('users.index').'#grant-access'],
+                        ['label' => __('messages.users_list'), 'href' => route('users.index').'#users-list'],
+                    ],
+                ],
+            ],
+        ],
+    ];
 
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <form method="POST" action="{{ route('language.update') }}" class="me-4">
-                    @csrf
-                    <label for="locale" class="sr-only">{{ __('messages.language') }}</label>
-                    <select id="locale" name="locale" onchange="this.form.submit()" class="rounded-md border-gray-200 bg-white text-sm shadow-sm focus:border-red-500 focus:ring-red-500">
-                        <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('messages.swahili') }}</option>
-                        <option value="en" @selected(app()->getLocale() === 'en')>{{ __('messages.english') }}</option>
-                    </select>
-                </form>
+    $navGroups = collect($navGroups)
+        ->map(fn (array $group): array => [
+            ...$group,
+            'items' => collect($group['items'])->filter(fn (array $item): bool => $item['visible'])->values()->all(),
+        ])
+        ->filter(fn (array $group): bool => count($group['items']) > 0)
+        ->values()
+        ->all();
+@endphp
 
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="inline-flex items-center whitespace-nowrap rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-600 shadow-sm transition duration-150 ease-in-out hover:border-amber-300 hover:text-gray-900 focus:outline-none">
-                            <div x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
+<nav
+    x-data="{ mobileOpen: false, openGroups: @js(collect($navGroups)->mapWithKeys(fn ($group, $index) => ['group'.$index => collect($group['items'])->contains('active', true)])->all()) }"
+    class="relative z-50"
+>
+    <div class="lg:hidden">
+        <div class="sticky top-0 z-40 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur">
+            <div class="h-1 bg-gradient-to-r from-red-700 via-yellow-400 to-red-700"></div>
+            <div class="flex h-16 items-center justify-between px-4">
+                <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3">
+                    <x-application-logo class="h-11 w-11" />
+                    <div class="leading-tight">
+                        <p class="text-sm font-bold tracking-wide text-gray-950">{{ __('messages.app_name') }}</p>
+                        <p class="text-[11px] font-medium uppercase tracking-wide text-red-700">City Impact</p>
+                    </div>
+                </a>
 
-                            <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </button>
-                    </x-slot>
-
-                    <x-slot name="content">
-                        <x-dropdown-link :href="route('profile')" wire:navigate>
-                            {{ __('messages.profile') }}
-                        </x-dropdown-link>
-
-                        <!-- Authentication -->
-                        <button wire:click="logout" class="w-full text-start">
-                            <x-dropdown-link>
-                                {{ __('messages.logout') }}
-                            </x-dropdown-link>
-                        </button>
-                    </x-slot>
-                </x-dropdown>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center rounded-md p-2 text-gray-500 transition duration-150 ease-in-out hover:bg-amber-50 hover:text-gray-900 focus:bg-amber-50 focus:text-gray-900 focus:outline-none">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                <button @click="mobileOpen = true" type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-50">
+                    <span class="sr-only">{{ __('messages.open_menu') }}</span>
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
             </div>
         </div>
-    </div>
 
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
-                {{ __('messages.dashboard') }}
-            </x-responsive-nav-link>
-            @can('members.view')
-                <x-responsive-nav-link :href="route('members.index')" :active="request()->routeIs('members.*')" wire:navigate>
-                    {{ __('messages.members') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('visitors.manage')
-                <x-responsive-nav-link :href="route('visitors.index')" :active="request()->routeIs('visitors.*')" wire:navigate>
-                    {{ __('messages.visitors') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('departments.manage')
-                <x-responsive-nav-link :href="route('departments.index')" :active="request()->routeIs('departments.*')" wire:navigate>
-                    {{ __('messages.departments') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('zones.manage')
-                <x-responsive-nav-link :href="route('zones.index')" :active="request()->routeIs('zones.*')" wire:navigate>
-                    {{ __('messages.zones') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('services.manage')
-                <x-responsive-nav-link :href="route('services.index')" :active="request()->routeIs('services.*')" wire:navigate>
-                    {{ __('messages.services') }}
-                </x-responsive-nav-link>
-            @endcan
-            @canany(['finance.view', 'finance.record'])
-                <x-responsive-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.*')" wire:navigate>
-                    {{ __('messages.finance') }}
-                </x-responsive-nav-link>
-            @endcanany
-            @canany(['calendar.manage', 'calendar.submit'])
-                <x-responsive-nav-link :href="route('calendar.index')" :active="request()->routeIs('calendar.*')" wire:navigate>
-                    {{ __('messages.calendar') }}
-                </x-responsive-nav-link>
-            @endcanany
-            @canany(['reports.view', 'reports.submit', 'reports.approve'])
-                <x-responsive-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')" wire:navigate>
-                    {{ __('messages.reports') }}
-                </x-responsive-nav-link>
-            @endcanany
-            @can('leadership.manage')
-                <x-responsive-nav-link :href="route('leadership.index')" :active="request()->routeIs('leadership.*')" wire:navigate>
-                    {{ __('messages.leadership') }}
-                </x-responsive-nav-link>
-            @endcan
-            @can('users.manage')
-                <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')" wire:navigate>
-                    {{ __('messages.users') }}
-                </x-responsive-nav-link>
-            @endcan
-        </div>
+        <div x-show="mobileOpen" x-cloak class="fixed inset-0 z-50">
+            <div x-show="mobileOpen" x-transition.opacity @click="mobileOpen = false" class="absolute inset-0 bg-gray-950/45"></div>
+            <aside x-show="mobileOpen" x-transition class="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col border-r border-gray-200 bg-white shadow-xl">
+                <div class="flex h-16 items-center justify-between border-b border-gray-200 px-5">
+                    <div class="flex items-center gap-3">
+                        <x-application-logo class="h-10 w-10" />
+                        <div>
+                            <p class="text-sm font-bold text-gray-950">{{ __('messages.app_name') }}</p>
+                            <p class="text-xs font-medium text-red-700">TAG-CICC</p>
+                        </div>
+                    </div>
+                    <button @click="mobileOpen = false" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100">
+                        <span class="sr-only">{{ __('messages.close_menu') }}</span>
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800" x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name"></div>
-                <div class="font-medium text-sm text-gray-500">{{ auth()->user()->email }}</div>
-            </div>
+                <div class="flex-1 overflow-y-auto px-4 py-5">
+                    @include('livewire.layout.sidebar-menu', ['navGroups' => $navGroups, 'mobile' => true])
+                </div>
 
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile')" wire:navigate>
-                    {{ __('messages.profile') }}
-                </x-responsive-nav-link>
-
-                <form method="POST" action="{{ route('language.update') }}" class="px-4 py-2">
-                    @csrf
-                    <label for="mobile_locale" class="mb-1 block text-sm font-medium text-gray-700">{{ __('messages.language') }}</label>
-                    <select id="mobile_locale" name="locale" onchange="this.form.submit()" class="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        <option value="sw" @selected(app()->getLocale() === 'sw')>{{ __('messages.swahili') }}</option>
-                        <option value="en" @selected(app()->getLocale() === 'en')>{{ __('messages.english') }}</option>
-                    </select>
-                </form>
-
-                <!-- Authentication -->
-                <button wire:click="logout" class="w-full text-start">
-                    <x-responsive-nav-link>
-                        {{ __('messages.logout') }}
-                    </x-responsive-nav-link>
-                </button>
-            </div>
+                @include('livewire.layout.sidebar-user', ['mobile' => true])
+            </aside>
         </div>
     </div>
+
+    <aside class="fixed inset-y-0 left-0 hidden w-72 flex-col border-r border-gray-200 bg-white/95 shadow-sm backdrop-blur lg:flex">
+        <div class="h-1 bg-gradient-to-r from-red-700 via-yellow-400 to-red-700"></div>
+        <div class="flex h-20 items-center border-b border-gray-200 px-6">
+            <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3">
+                <x-application-logo class="h-12 w-12" />
+                <div class="leading-tight">
+                    <p class="text-sm font-bold tracking-wide text-gray-950">{{ __('messages.app_name') }}</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-red-700">City Impact</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="flex-1 overflow-y-auto px-4 py-5">
+            @include('livewire.layout.sidebar-menu', ['navGroups' => $navGroups, 'mobile' => false])
+        </div>
+
+        @include('livewire.layout.sidebar-user', ['mobile' => false])
+    </aside>
 </nav>

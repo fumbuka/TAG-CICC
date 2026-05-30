@@ -17,8 +17,8 @@
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
             x-text="message"></div>
 
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <div id="reports-summary" class="scroll-mt-24 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section id="submit-report" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.planned_department_events') }}</p>
                 <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($plannedEventsCount) }}</p>
                 <p class="mt-2 text-sm text-gray-600">{{ __('messages.from_calendar') }}</p>
@@ -114,7 +114,7 @@
             </section>
         @endif
 
-        <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section id="event-reports" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.event_reports') }}</h2>
             </div>
