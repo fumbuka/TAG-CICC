@@ -8,6 +8,7 @@ use App\Models\Member;
 use App\Models\Zone;
 use App\Services\MemberDepartmentAssignmentService;
 use App\Services\SpreadsheetImportService;
+use App\Support\UserDataScope;
 use DateTimeInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
@@ -233,7 +234,9 @@ class Index extends Component
 
     public function render(): View
     {
-        $members = Member::query()
+        $scope = UserDataScope::for(Auth::user());
+
+        $members = $scope->applyMemberScope(Member::query())
             ->with(['departments', 'zone'])
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($query): void {
@@ -250,8 +253,8 @@ class Index extends Component
 
         return view('livewire.members.index', [
             'members' => $members,
-            'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
+            'departments' => $scope->applyDepartmentScope(Department::query()->where('is_active', true))->orderBy('name')->get(),
+            'zones' => $scope->applyZoneScope(Zone::query()->where('is_active', true))->orderBy('name')->get(),
         ]);
     }
 

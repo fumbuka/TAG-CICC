@@ -6,7 +6,9 @@ use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Members\Index as MembersIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
 use App\Models\Department;
+use App\Models\LeadershipTitle;
 use App\Models\Member;
+use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,6 +56,64 @@ class MembershipManagementTest extends TestCase
             ->get('/members')
             ->assertOk()
             ->assertSee('Washirika');
+    }
+
+    public function test_department_leader_members_list_is_limited_to_assigned_departments(): void
+    {
+        $user = User::factory()->create();
+        Permission::create([
+            'name' => 'members.view',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('members.view');
+
+        $leader = Member::create([
+            'user_id' => $user->id,
+            'first_name' => 'Kiongozi',
+            'last_name' => 'Wababa',
+            'gender' => 'male',
+        ]);
+        $men = Department::create([
+            'name' => 'Wababa',
+            'slug' => 'wababa',
+        ]);
+        $women = Department::create([
+            'name' => 'Wamama',
+            'slug' => 'wamama',
+        ]);
+        $title = LeadershipTitle::create([
+            'name' => 'Mkurugenzi wa Idara',
+            'slug' => 'mkurugenzi-wa-idara',
+            'scope' => 'department',
+        ]);
+
+        MemberLeadershipAssignment::create([
+            'member_id' => $leader->id,
+            'leadership_title_id' => $title->id,
+            'department_id' => $men->id,
+            'is_active' => true,
+        ]);
+
+        $menMember = Member::create([
+            'first_name' => 'Adam',
+            'last_name' => 'Mzee',
+            'gender' => 'male',
+        ]);
+        $womenMember = Member::create([
+            'first_name' => 'Neema',
+            'last_name' => 'Mama',
+            'gender' => 'female',
+        ]);
+
+        $menMember->departments()->attach($men->id, ['is_active' => true]);
+        $womenMember->departments()->attach($women->id, ['is_active' => true]);
+
+        Livewire::actingAs($user)
+            ->test(MembersIndex::class)
+            ->assertSee('Adam')
+            ->assertSee('Wababa')
+            ->assertDontSee('Neema')
+            ->assertDontSee('Wamama');
     }
 
     public function test_member_can_be_registered_with_zone_and_department_assignments(): void

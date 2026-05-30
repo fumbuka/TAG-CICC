@@ -9,7 +9,9 @@ use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Models\FinancialTransaction;
 use App\Models\IncomeCategory;
+use App\Models\LeadershipTitle;
 use App\Models\Member;
+use App\Models\MemberLeadershipAssignment;
 use App\Models\Pledge;
 use App\Models\PledgePayment;
 use App\Models\Service;
@@ -452,6 +454,68 @@ class ServicesFinanceTest extends TestCase
             ->get('/dashboard')
             ->assertOk()
             ->assertSee('TZS 70,000.00');
+    }
+
+    public function test_department_treasurer_finance_page_is_limited_to_assigned_department(): void
+    {
+        $user = User::factory()->create();
+        Permission::create([
+            'name' => 'finance.view',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('finance.view');
+
+        $treasurer = Member::create([
+            'user_id' => $user->id,
+            'first_name' => 'Hazina',
+            'last_name' => 'Wababa',
+            'gender' => 'male',
+        ]);
+        $men = Department::create([
+            'name' => 'Wababa',
+            'slug' => 'wababa',
+        ]);
+        $women = Department::create([
+            'name' => 'Wamama',
+            'slug' => 'wamama',
+        ]);
+        $title = LeadershipTitle::create([
+            'name' => 'Mweka Hazina wa Idara',
+            'slug' => 'mweka-hazina-wa-idara',
+            'scope' => 'department',
+        ]);
+
+        MemberLeadershipAssignment::create([
+            'member_id' => $treasurer->id,
+            'leadership_title_id' => $title->id,
+            'department_id' => $men->id,
+            'is_active' => true,
+        ]);
+
+        $category = IncomeCategory::create([
+            'name' => 'Sadaka ya Idara',
+            'slug' => 'sadaka-ya-idara',
+        ]);
+
+        FinancialTransaction::create([
+            'income_category_id' => $category->id,
+            'department_id' => $men->id,
+            'amount' => 100,
+            'transaction_date' => now()->toDateString(),
+        ]);
+        FinancialTransaction::create([
+            'income_category_id' => $category->id,
+            'department_id' => $women->id,
+            'amount' => 500,
+            'transaction_date' => now()->toDateString(),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(FinanceIndex::class)
+            ->assertSee('TZS 100.00')
+            ->assertSee('Wababa')
+            ->assertDontSee('TZS 500.00')
+            ->assertDontSee('Wamama');
     }
 
     public function test_pledges_can_be_paid_in_installments_until_completed(): void

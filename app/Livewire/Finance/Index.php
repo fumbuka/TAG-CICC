@@ -12,6 +12,7 @@ use App\Models\Pledge;
 use App\Models\PledgePayment;
 use App\Models\Service;
 use App\Models\Zone;
+use App\Support\UserDataScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -646,8 +647,11 @@ class Index extends Component
 
     public function render(): View
     {
-        $transactionsQuery = FinancialTransaction::query();
-        $expensesQuery = Expense::query();
+        $scope = UserDataScope::for(Auth::user());
+        $transactionsQuery = $scope->applyFinanceScope(FinancialTransaction::query());
+        $expensesQuery = $scope->applyFinanceScope(Expense::query());
+        $pledgesQuery = $scope->applyFinanceScope(Pledge::query());
+        $pledgePaymentsQuery = $scope->applyPledgePaymentScope(PledgePayment::query());
 
         $monthTotal = (clone $transactionsQuery)
             ->whereBetween('transaction_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
@@ -665,7 +669,7 @@ class Index extends Component
             ->whereDate('expense_date', now()->toDateString())
             ->sum('amount');
 
-        $transactions = $transactionsQuery
+        $transactions = (clone $transactionsQuery)
             ->with(['incomeCategory', 'service', 'department', 'zone', 'recordedBy', 'pledge'])
             ->when($this->search !== '', function ($query): void {
                 $query->where(function ($query): void {
@@ -681,19 +685,19 @@ class Index extends Component
             ->latest()
             ->paginate(10);
 
-        $expenses = Expense::query()
+        $expenses = (clone $expensesQuery)
             ->with(['expenseCategory', 'service', 'department', 'zone', 'recordedBy'])
             ->latest('expense_date')
             ->latest()
             ->limit(10)
             ->get();
 
-        $totalPledged = Pledge::query()->where('status', '!=', 'cancelled')->sum('pledged_amount');
-        $totalPledgePaid = PledgePayment::query()
+        $totalPledged = (clone $pledgesQuery)->where('status', '!=', 'cancelled')->sum('pledged_amount');
+        $totalPledgePaid = (clone $pledgePaymentsQuery)
             ->whereHas('pledge', fn ($query) => $query->where('status', '!=', 'cancelled'))
             ->sum('amount');
-        $totalIncome = FinancialTransaction::query()->sum('amount');
-        $totalExpenses = Expense::query()->sum('amount');
+        $totalIncome = (clone $transactionsQuery)->sum('amount');
+        $totalExpenses = (clone $expensesQuery)->sum('amount');
 
         return view('livewire.finance.index', [
             'transactions' => $transactions,
@@ -710,17 +714,17 @@ class Index extends Component
                 ->orderBy('name')
                 ->get(),
             'expenses' => $expenses,
-            'services' => Service::query()->latest('service_date')->limit(50)->get(),
-            'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
-            'members' => Member::query()->orderBy('first_name')->orderBy('last_name')->get(),
-            'pledges' => Pledge::query()
+            'services' => $scope->applyFinanceServiceScope(Service::query())->latest('service_date')->limit(50)->get(),
+            'departments' => $scope->applyFinanceDepartmentScope(Department::query()->where('is_active', true))->orderBy('name')->get(),
+            'zones' => $scope->applyFinanceZoneScope(Zone::query()->where('is_active', true))->orderBy('name')->get(),
+            'members' => $scope->applyFinanceMemberScope(Member::query())->orderBy('first_name')->orderBy('last_name')->get(),
+            'pledges' => (clone $pledgesQuery)
                 ->with(['member', 'incomeCategory', 'service', 'department', 'zone'])
                 ->withSum('payments', 'amount')
                 ->latest('pledged_at')
                 ->latest()
                 ->get(),
-            'pledgePayments' => PledgePayment::query()
+            'pledgePayments' => (clone $pledgePaymentsQuery)
                 ->with(['pledge.member', 'pledge.incomeCategory', 'financialTransaction'])
                 ->latest('payment_date')
                 ->latest()

@@ -11,6 +11,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Models\WeeklyDuty;
 use App\Models\Zone;
+use App\Support\UserDataScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
 
@@ -19,21 +20,27 @@ class DashboardController extends Controller
     public function __invoke(): View
     {
         $today = now()->startOfDay();
+        $scope = UserDataScope::for(request()->user());
         $weeklyDuty = $this->weeklyDutyForDashboard($today);
+        $incomeQuery = $scope->applyFinanceScope(FinancialTransaction::query());
+        $expenseQuery = $scope->applyFinanceScope(Expense::query());
 
         return view('dashboard', [
-            'memberCount' => Member::query()->count(),
-            'departmentCount' => Department::query()->where('is_active', true)->count(),
-            'zoneCount' => Zone::query()->where('is_active', true)->count(),
-            'serviceCount' => Service::query()->count(),
-            'cashTotal' => (float) FinancialTransaction::query()->sum('amount') - (float) Expense::query()->sum('amount'),
+            'dashboardScopeLabel' => $scope->label(),
+            'memberCount' => $scope->applyMemberScope(Member::query())->count(),
+            'departmentCount' => $scope->applyDepartmentScope(Department::query()->where('is_active', true))->count(),
+            'zoneCount' => $scope->applyZoneScope(Zone::query()->where('is_active', true))->count(),
+            'serviceCount' => $scope->applyServiceScope(Service::query())->count(),
+            'cashTotal' => $scope->canSeeFinance() ? (float) $incomeQuery->sum('amount') - (float) $expenseQuery->sum('amount') : null,
             'systemAccessCount' => User::query()->whereHas('member')->where('is_active', true)->count(),
             'today' => $today,
-            'upcomingEvents' => CalendarEvent::query()
-                ->with(['department', 'zone'])
-                ->where('is_active', true)
-                ->where('is_important', true)
-                ->whereDate('event_date', '>=', $today->toDateString())
+            'upcomingEvents' => $scope->applyCalendarEventScope(
+                CalendarEvent::query()
+                    ->with(['department', 'zone'])
+                    ->where('is_active', true)
+                    ->where('is_important', true)
+                    ->whereDate('event_date', '>=', $today->toDateString()),
+            )
                 ->orderBy('event_date')
                 ->orderBy('starts_at')
                 ->limit(3)

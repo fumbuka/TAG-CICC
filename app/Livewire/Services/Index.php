@@ -7,8 +7,10 @@ use App\Models\Service;
 use App\Models\ServiceRoutine;
 use App\Models\ServiceType;
 use App\Models\Zone;
+use App\Support\UserDataScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -166,7 +168,9 @@ class Index extends Component
 
     public function render(): View
     {
-        $services = Service::query()
+        $scope = UserDataScope::for(Auth::user());
+
+        $services = $scope->applyServiceScope(Service::query())
             ->with(['serviceType', 'serviceRoutine', 'department', 'zone'])
             ->withSum('financialTransactions', 'amount')
             ->when($this->search !== '', function ($query): void {
@@ -184,16 +188,19 @@ class Index extends Component
 
         return view('livewire.services.index', [
             'services' => $services,
-            'serviceRoutines' => ServiceRoutine::query()
-                ->with(['serviceType', 'department', 'zone'])
-                ->where('is_active', true)
+            'serviceRoutines' => $scope
+                ->applyServiceScope(
+                    ServiceRoutine::query()
+                        ->with(['serviceType', 'department', 'zone'])
+                        ->where('is_active', true),
+                )
                 ->orderBy('day_of_week')
                 ->orderBy('starts_at')
                 ->orderBy('title')
                 ->get(),
             'serviceTypes' => ServiceType::query()->where('is_active', true)->orderBy('name')->get(),
-            'departments' => Department::query()->where('is_active', true)->orderBy('name')->get(),
-            'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
+            'departments' => $scope->applyDepartmentScope(Department::query()->where('is_active', true))->orderBy('name')->get(),
+            'zones' => $scope->applyZoneScope(Zone::query()->where('is_active', true))->orderBy('name')->get(),
             'selectedRoutineNextDate' => $this->selectedRoutineNextDate(),
         ]);
     }

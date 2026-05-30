@@ -24,6 +24,7 @@
                                 <p class="text-sm font-semibold uppercase tracking-[0.18em] text-red-700">{{ __('messages.church_management_system') }}</p>
                                 <h1 class="mt-2 text-2xl font-semibold text-gray-950 sm:text-3xl">{{ __('messages.dashboard_welcome', ['name' => auth()->user()->name]) }}</h1>
                                 <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600">{{ __('messages.dashboard_summary') }}</p>
+                                <p class="mt-4 inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">{{ $dashboardScopeLabel }}</p>
                             </div>
                         </div>
                     </div>
@@ -37,35 +38,69 @@
             </section>
 
             <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <a href="{{ route('members.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @can('members.view')
+                    <a href="{{ route('members.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @else
+                    <div class="{{ $statCardClass }}">
+                @endcan
                     <p class="text-sm font-medium text-red-700">{{ __('messages.members') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($memberCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.total_registered_members') }}</p>
-                </a>
+                @can('members.view')
+                    </a>
+                @else
+                    </div>
+                @endcan
 
-                <a href="{{ route('departments.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @can('departments.manage')
+                    <a href="{{ route('departments.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @else
+                    <div class="{{ $statCardClass }}">
+                @endcan
                     <p class="text-sm font-medium text-red-700">{{ __('messages.departments') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($departmentCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.active_departments_count') }}</p>
-                </a>
+                @can('departments.manage')
+                    </a>
+                @else
+                    </div>
+                @endcan
 
-                <a href="{{ route('services.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @can('services.manage')
+                    <a href="{{ route('services.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @else
+                    <div class="{{ $statCardClass }}">
+                @endcan
                     <p class="text-sm font-medium text-red-700">{{ __('messages.services') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($serviceCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.recorded_services_count') }}</p>
-                </a>
+                @can('services.manage')
+                    </a>
+                @else
+                    </div>
+                @endcan
 
-                <a href="{{ route('finance.index') }}" wire:navigate class="{{ $statCardClass }}">
-                    <p class="text-sm font-medium text-red-700">{{ __('messages.cash_on_hand') }}</p>
-                    <p class="mt-3 text-3xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $cashTotal, 2) }}</p>
-                    <p class="mt-2 text-sm text-gray-600">{{ __('messages.recorded_income_total') }}</p>
-                </a>
+                @canany(['finance.view', 'finance.record'])
+                    <a href="{{ route('finance.index') }}" wire:navigate class="{{ $statCardClass }}">
+                        <p class="text-sm font-medium text-red-700">{{ __('messages.cash_on_hand') }}</p>
+                        <p class="mt-3 text-3xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $cashTotal, 2) }}</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ __('messages.recorded_income_total') }}</p>
+                    </a>
+                @endcanany
 
-                <a href="{{ route('zones.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @can('zones.manage')
+                    <a href="{{ route('zones.index') }}" wire:navigate class="{{ $statCardClass }}">
+                @else
+                    <div class="{{ $statCardClass }}">
+                @endcan
                     <p class="text-sm font-medium text-red-700">{{ __('messages.zones') }}</p>
                     <p class="mt-3 text-4xl font-semibold text-gray-950">{{ number_format($zoneCount) }}</p>
                     <p class="mt-2 text-sm text-gray-600">{{ __('messages.active_zones_count') }}</p>
-                </a>
+                @can('zones.manage')
+                    </a>
+                @else
+                    </div>
+                @endcan
 
                 @can('users.manage')
                     <a href="{{ route('users.index') }}" wire:navigate class="{{ $statCardClass }}">
