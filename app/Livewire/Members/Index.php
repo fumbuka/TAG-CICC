@@ -6,6 +6,7 @@ use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
 use App\Models\Member;
 use App\Models\Zone;
+use App\Services\ImportReportExportService;
 use App\Services\MemberDepartmentAssignmentService;
 use App\Services\SpreadsheetImportService;
 use App\Support\UserDataScope;
@@ -21,6 +22,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
 #[Layout('layouts.app')]
@@ -158,8 +160,11 @@ class Index extends Component
         $this->dispatch('member-deleted');
     }
 
-    public function import(SpreadsheetImportService $importer, MemberDepartmentAssignmentService $assignmentService): void
-    {
+    public function import(
+        SpreadsheetImportService $importer,
+        MemberDepartmentAssignmentService $assignmentService,
+        ImportReportExportService $reportExporter,
+    ): BinaryFileResponse {
         $this->validate([
             'memberImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
@@ -221,15 +226,17 @@ class Index extends Component
                         });
                 });
 
-                $this->recordImportedRow($rowNumber, $record);
+                $this->recordImportedRow($rowNumber, $record, $row);
             } catch (Throwable $exception) {
-                $this->recordRejectedRow($rowNumber, $record, $this->importFailureMessages($exception));
+                $this->recordRejectedRow($rowNumber, $record, $this->importFailureMessages($exception), $row);
             }
         }
 
         $this->memberImport = null;
 
         $this->dispatch('members-imported', count: $this->importReport['imported_count'], rejected: $this->importReport['rejected_count']);
+
+        return $this->downloadImportReport($reportExporter);
     }
 
     public function render(): View

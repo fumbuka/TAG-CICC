@@ -11,6 +11,7 @@ use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
 use App\Models\Zone;
+use App\Services\ImportReportExportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Livewire\Livewire;
@@ -228,6 +229,7 @@ class MembershipManagementTest extends TestCase
 
     public function test_members_bulk_import_reports_successes_and_rejections(): void
     {
+        $this->travelTo('2026-05-30 09:00:00');
         $user = User::factory()->create();
 
         $file = UploadedFile::fake()->createWithContent(
@@ -243,7 +245,11 @@ class MembershipManagementTest extends TestCase
             ->assertSet('importReport.total_rows', 3)
             ->assertSet('importReport.imported_count', 1)
             ->assertSet('importReport.rejected_count', 2)
-            ->assertDispatched('members-imported');
+            ->assertDispatched('members-imported')
+            ->assertFileDownloaded(
+                'tag-cicc-members-import-report-20260530-090000.xlsx',
+                contentType: ImportReportExportService::CONTENT_TYPE,
+            );
 
         $this->assertDatabaseHas('members', [
             'phone_number' => '0711111111',
@@ -364,6 +370,7 @@ class MembershipManagementTest extends TestCase
 
     public function test_departments_bulk_import_reports_successes_and_rejections(): void
     {
+        $this->travelTo('2026-05-30 09:05:00');
         $user = User::factory()->create();
 
         $file = UploadedFile::fake()->createWithContent(
@@ -379,7 +386,11 @@ class MembershipManagementTest extends TestCase
             ->assertSet('importReport.total_rows', 3)
             ->assertSet('importReport.imported_count', 1)
             ->assertSet('importReport.rejected_count', 2)
-            ->assertDispatched('departments-imported');
+            ->assertDispatched('departments-imported')
+            ->assertFileDownloaded(
+                'tag-cicc-departments-import-report-20260530-090500.xlsx',
+                contentType: ImportReportExportService::CONTENT_TYPE,
+            );
 
         $this->assertDatabaseHas('departments', [
             'name' => 'Media',
@@ -472,6 +483,7 @@ class MembershipManagementTest extends TestCase
 
     public function test_zones_bulk_import_reports_successes_and_rejections(): void
     {
+        $this->travelTo('2026-05-30 09:10:00');
         $user = User::factory()->create();
 
         $file = UploadedFile::fake()->createWithContent(
@@ -487,7 +499,11 @@ class MembershipManagementTest extends TestCase
             ->assertSet('importReport.total_rows', 2)
             ->assertSet('importReport.imported_count', 1)
             ->assertSet('importReport.rejected_count', 1)
-            ->assertDispatched('zones-imported');
+            ->assertDispatched('zones-imported')
+            ->assertFileDownloaded(
+                'tag-cicc-zones-import-report-20260530-091000.xlsx',
+                contentType: ImportReportExportService::CONTENT_TYPE,
+            );
 
         $this->assertDatabaseHas('zones', [
             'name' => 'Mbagala',

@@ -4,6 +4,7 @@ namespace App\Livewire\Departments;
 
 use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
+use App\Services\ImportReportExportService;
 use App\Services\SpreadsheetImportService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Validator;
@@ -12,6 +13,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
 
 #[Layout('layouts.app')]
@@ -111,7 +113,7 @@ class Index extends Component
         ]);
     }
 
-    public function import(SpreadsheetImportService $importer): void
+    public function import(SpreadsheetImportService $importer, ImportReportExportService $reportExporter): BinaryFileResponse
     {
         $this->validate([
             'departmentImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
@@ -149,15 +151,17 @@ class Index extends Component
                     $attributes,
                 );
 
-                $this->recordImportedRow($rowNumber, $name);
+                $this->recordImportedRow($rowNumber, $name, $row);
             } catch (Throwable $exception) {
-                $this->recordRejectedRow($rowNumber, $name, $this->importFailureMessages($exception));
+                $this->recordRejectedRow($rowNumber, $name, $this->importFailureMessages($exception), $row);
             }
         }
 
         $this->departmentImport = null;
 
         $this->dispatch('departments-imported', count: $this->importReport['imported_count'], rejected: $this->importReport['rejected_count']);
+
+        return $this->downloadImportReport($reportExporter);
     }
 
     public function render(): View
