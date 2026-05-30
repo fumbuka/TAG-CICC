@@ -341,6 +341,7 @@ return [
     'leader_access_created_help' => 'Mpe kiongozi taarifa hizi za kuingia. Nenosiri linaonekana mara hii moja tu.',
     'leader_access_updated_help' => 'Kiongozi huyu tayari alikuwa na akaunti; role yake imeongezwa au kuhifadhiwa na nenosiri lake halijabadilishwa.',
     'temporary_password' => 'Nenosiri la muda',
+    'existing_password_unchanged' => 'Nenosiri la zamani halijabadilishwa',
     'confirm_delete_leadership_title' => 'Una uhakika unataka kufuta cheo hiki?',
     'confirm_delete_leadership_assignment' => 'Una uhakika unataka kufuta jukumu hili?',
     'department_required_for_title' => 'Chagua idara kwa cheo cha ngazi ya idara.',

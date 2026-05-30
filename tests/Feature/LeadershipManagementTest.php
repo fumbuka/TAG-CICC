@@ -9,6 +9,7 @@ use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -121,6 +122,40 @@ class LeadershipManagementTest extends TestCase
         $this->assertSame('0654849299', $user->phone_number);
         $this->assertTrue($user->hasRole('Katibu wa Idara'));
         $this->assertTrue(Hash::check($credentials['password'], $user->password));
+    }
+
+    public function test_existing_leadership_assignments_can_be_backfilled_with_login_access(): void
+    {
+        $member = Member::create([
+            'first_name' => 'Baraka',
+            'last_name' => 'Mzee',
+            'gender' => 'male',
+            'email' => 'baraka.mzee@tag-cicc.or.tz',
+        ]);
+        $title = LeadershipTitle::create([
+            'name' => 'Mkurugenzi wa Idara',
+            'slug' => 'mkurugenzi-wa-idara',
+            'scope' => 'department',
+        ]);
+        $department = Department::create([
+            'name' => 'Wababa',
+            'slug' => 'wababa',
+        ]);
+
+        MemberLeadershipAssignment::create([
+            'member_id' => $member->id,
+            'leadership_title_id' => $title->id,
+            'department_id' => $department->id,
+            'is_active' => true,
+        ]);
+
+        Artisan::call('leadership:grant-access');
+
+        $user = User::query()->where('email', 'baraka.mzee@tag-cicc.or.tz')->firstOrFail();
+
+        $this->assertSame($user->id, $member->refresh()->user_id);
+        $this->assertTrue($user->hasRole('Mkurugenzi wa Idara'));
+        $this->assertStringContainsString('baraka.mzee@tag-cicc.or.tz', Artisan::output());
     }
 
     public function test_department_level_title_requires_department(): void

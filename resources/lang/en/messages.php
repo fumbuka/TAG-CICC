@@ -341,6 +341,7 @@ return [
     'leader_access_created_help' => 'Share these login details with the leader. The temporary password is shown only once.',
     'leader_access_updated_help' => 'This leader already had an account; their role has been added or saved and their password was not changed.',
     'temporary_password' => 'Temporary password',
+    'existing_password_unchanged' => 'Existing password unchanged',
     'confirm_delete_leadership_title' => 'Are you sure you want to delete this title?',
     'confirm_delete_leadership_assignment' => 'Are you sure you want to delete this assignment?',
     'department_required_for_title' => 'Select a department for a department-level title.',
