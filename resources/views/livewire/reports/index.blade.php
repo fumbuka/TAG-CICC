@@ -156,6 +156,8 @@
                                 </td>
                                 <td class="px-5 py-4">
                                     <div class="flex flex-wrap gap-3">
+                                        <button wire:click="downloadReport({{ $report->id }})" wire:loading.attr="disabled" wire:target="downloadReport({{ $report->id }})" type="button" class="text-sm font-medium text-red-700 hover:text-red-900 disabled:cursor-wait disabled:opacity-60">{{ __('messages.download_pdf') }}</button>
+
                                         @if ($canEditReport)
                                             <button wire:click="editReport({{ $report->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
                                             <button wire:click="deleteReport({{ $report->id }})" wire:confirm="{{ __('messages.confirm_delete_report') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
@@ -168,10 +170,6 @@
                                             @if ($report->status !== 'returned')
                                                 <button wire:click="returnReport({{ $report->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">{{ __('messages.return_report') }}</button>
                                             @endif
-                                        @endif
-
-                                        @if (! $canEditReport && ! $canApproveReports)
-                                            <span class="text-gray-400">-</span>
                                         @endif
                                     </div>
                                 </td>

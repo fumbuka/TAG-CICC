@@ -4,11 +4,13 @@ namespace App\Livewire\Reports;
 
 use App\Models\CalendarEvent;
 use App\Models\DepartmentEventReport;
+use App\Services\DepartmentEventReportPdfService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 #[Layout('layouts.app')]
 class Index extends Component
@@ -159,6 +161,25 @@ class Index extends Component
         ]);
 
         $this->dispatch('report-returned');
+    }
+
+    public function downloadReport(int $reportId): BinaryFileResponse
+    {
+        $user = Auth::user();
+
+        abort_unless($user, 403);
+
+        $report = $this->scopedReportsQuery()
+            ->with(['calendarEvent', 'department', 'submittedBy.member', 'reviewedBy.member'])
+            ->findOrFail($reportId);
+
+        $download = app(DepartmentEventReportPdfService::class)->create($report, $user);
+
+        return response()
+            ->download($download['path'], $download['filename'], [
+                'Content-Type' => DepartmentEventReportPdfService::CONTENT_TYPE,
+            ])
+            ->deleteFileAfterSend();
     }
 
     public function render(): View

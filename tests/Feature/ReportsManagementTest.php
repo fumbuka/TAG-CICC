@@ -10,6 +10,7 @@ use App\Models\LeadershipTitle;
 use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
+use App\Services\DepartmentEventReportPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -128,6 +129,32 @@ class ReportsManagementTest extends TestCase
             ->test(ReportsIndex::class)
             ->call('editReport', $report->id)
             ->assertForbidden();
+    }
+
+    public function test_department_event_report_can_be_downloaded_as_pdf(): void
+    {
+        $this->travelTo('2026-05-30 12:15:00');
+
+        [$reporter, , $event] = $this->departmentReporter();
+
+        $report = DepartmentEventReport::create([
+            'calendar_event_id' => $event->id,
+            'department_id' => $event->department_id,
+            'submitted_by_user_id' => $reporter->id,
+            'report_date' => '2026-06-15',
+            'attendance_count' => 42,
+            'status' => 'submitted',
+            'summary' => 'Ripoti ya utekelezaji.',
+            'achievements' => 'Watu wapya wamefikiwa.',
+        ]);
+
+        Livewire::actingAs($reporter)
+            ->test(ReportsIndex::class)
+            ->call('downloadReport', $report->id)
+            ->assertFileDownloaded(
+                'tag-cicc-event-report-'.$report->id.'-20260530-121500.pdf',
+                contentType: DepartmentEventReportPdfService::CONTENT_TYPE,
+            );
     }
 
     /**
