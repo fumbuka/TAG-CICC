@@ -11,6 +11,8 @@ class DepartmentEventReportPdfService
 {
     public const CONTENT_TYPE = 'application/pdf';
 
+    public function __construct(private readonly OperationalReportPdfAssets $assets) {}
+
     /**
      * @return array{path: string, filename: string}
      */
@@ -36,13 +38,9 @@ class DepartmentEventReportPdfService
 
         $pdf = Pdf::loadView('pdf.department-event-report', [
             'report' => $report,
-            'downloadedBy' => $downloadedBy,
-            'downloadedAt' => $downloadedAt,
-            'downloadedByName' => $this->userDisplayName($downloadedBy),
-            'submittedByName' => $this->userDisplayName($report->submittedBy),
-            'reviewedByName' => $report->reviewedBy ? $this->userDisplayName($report->reviewedBy) : null,
-            'localChurchLogo' => $this->imageDataUri(public_path('images/tag-cicc-logo.png')),
-            'motherChurchLogo' => $this->imageDataUri(public_path('images/tag-cicc-icon.png')),
+            ...$this->assets->branding($downloadedBy, $downloadedAt),
+            'submittedByName' => $this->assets->userDisplayName($report->submittedBy),
+            'reviewedByName' => $report->reviewedBy ? $this->assets->userDisplayName($report->reviewedBy) : null,
             'metrics' => $this->metrics($report),
         ])
             ->setPaper('a4')
@@ -80,34 +78,5 @@ class DepartmentEventReportPdfService
             'filled_sections' => $filledSections,
             'total_sections' => 4,
         ];
-    }
-
-    private function userDisplayName(?User $user): string
-    {
-        if (! $user) {
-            return __('messages.not_recorded');
-        }
-
-        $memberName = $user->member
-            ? trim(collect([
-                $user->member->first_name,
-                $user->member->middle_name,
-                $user->member->last_name,
-            ])->filter()->join(' '))
-            : '';
-
-        return $memberName !== '' ? $memberName : $user->name;
-    }
-
-    private function imageDataUri(string $path): ?string
-    {
-        if (! File::exists($path)) {
-            return null;
-        }
-
-        $contents = File::get($path);
-        $mimeType = File::mimeType($path) ?: 'image/png';
-
-        return 'data:'.$mimeType.';base64,'.base64_encode($contents);
     }
 }
