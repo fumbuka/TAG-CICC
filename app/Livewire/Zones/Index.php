@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Zones;
 
+use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Zone;
 use App\Services\SpreadsheetImportService;
 use Illuminate\Contracts\View\View;
@@ -11,10 +12,12 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Throwable;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use TracksImportResults;
     use WithFileUploads;
 
     public ?int $editingZoneId = null;
@@ -94,33 +97,40 @@ class Index extends Component
             'zoneImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
 
-        $imported = 0;
+        $rows = $importer->rowsWithMetadata($this->zoneImport);
+        $this->startImportReport('zones', count($rows));
 
-        foreach ($importer->rows($this->zoneImport) as $row) {
+        foreach ($rows as $entry) {
+            $rowNumber = $entry['row_number'];
+            $row = $entry['data'];
             $name = trim((string) ($row['name'] ?? $row['zone_name'] ?? $row['jina'] ?? $row['jina_la_kanda'] ?? ''));
 
-            $attributes = [
-                'name' => $name,
-                'slug' => Str::slug($name),
-                'description' => trim((string) ($row['description'] ?? $row['maelezo'] ?? '')) ?: null,
-                'is_active' => true,
-            ];
+            try {
+                $attributes = [
+                    'name' => $name,
+                    'slug' => Str::slug($name),
+                    'description' => trim((string) ($row['description'] ?? $row['maelezo'] ?? '')) ?: null,
+                    'is_active' => true,
+                ];
 
-            Validator::make($attributes, [
-                'name' => ['required', 'string', 'max:255'],
-            ])->validate();
+                Validator::make($attributes, [
+                    'name' => ['required', 'string', 'max:255'],
+                ])->validate();
 
-            Zone::updateOrCreate(
-                ['slug' => $attributes['slug']],
-                $attributes,
-            );
+                Zone::updateOrCreate(
+                    ['slug' => $attributes['slug']],
+                    $attributes,
+                );
 
-            $imported++;
+                $this->recordImportedRow($rowNumber, $name);
+            } catch (Throwable $exception) {
+                $this->recordRejectedRow($rowNumber, $name, $this->importFailureMessages($exception));
+            }
         }
 
         $this->zoneImport = null;
 
-        $this->dispatch('zones-imported', count: $imported);
+        $this->dispatch('zones-imported', count: $this->importReport['imported_count'], rejected: $this->importReport['rejected_count']);
     }
 
     public function render(): View

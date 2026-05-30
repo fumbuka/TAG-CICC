@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Members;
 
+use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
 use App\Models\Member;
 use App\Models\Zone;
@@ -19,10 +20,12 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Throwable;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use TracksImportResults;
     use WithFileUploads;
     use WithPagination;
 
@@ -160,10 +163,15 @@ class Index extends Component
             'memberImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
 
-        $imported = 0;
+        $rows = $importer->rowsWithMetadata($this->memberImport);
+        $this->startImportReport('members', count($rows));
 
-        DB::transaction(function () use ($assignmentService, $importer, &$imported): void {
-            foreach ($importer->rows($this->memberImport) as $row) {
+        foreach ($rows as $entry) {
+            $rowNumber = $entry['row_number'];
+            $row = $entry['data'];
+            $record = $this->memberImportRecordLabel($row);
+
+            try {
                 $attributes = [
                     'first_name' => trim((string) ($row['first_name'] ?? $row['jina_la_kwanza'] ?? '')),
                     'middle_name' => trim((string) ($row['middle_name'] ?? $row['jina_la_kati'] ?? '')) ?: null,
@@ -177,46 +185,50 @@ class Index extends Component
                     'source' => 'member',
                 ];
 
-                $zoneName = trim((string) ($row['zone'] ?? $row['kanda'] ?? ''));
-                $attributes['zone_id'] = $zoneName !== '' ? $this->findOrCreateZone($zoneName)->id : null;
-
                 Validator::make($attributes, [
                     'first_name' => ['required', 'string', 'max:255'],
                     'last_name' => ['required', 'string', 'max:255'],
                     'gender' => ['required', Rule::in(['male', 'female'])],
-                    'date_of_birth' => ['required', 'date', 'before_or_equal:today'],
+                    'date_of_birth' => ['nullable', 'date', 'before_or_equal:today'],
                     'phone_number' => ['nullable', 'string', 'max:20'],
                     'email' => ['nullable', 'email', 'max:255'],
                 ])->validate();
 
-                $member = Member::create($attributes);
+                DB::transaction(function () use ($assignmentService, $attributes, $row): void {
+                    $zoneName = trim((string) ($row['zone'] ?? $row['kanda'] ?? ''));
+                    $attributes['zone_id'] = $zoneName !== '' ? $this->findOrCreateZone($zoneName)->id : null;
 
-                $assignmentService->assignDefaultDepartments($member, Auth::user());
+                    $member = Member::create($attributes);
 
-                collect($this->splitNames((string) ($row['departments'] ?? $row['idara'] ?? '')))
-                    ->each(function (string $departmentName) use ($member): void {
-                        $department = Department::firstOrCreate(
-                            ['slug' => Str::slug($departmentName)],
-                            ['name' => $departmentName, 'is_active' => true],
-                        );
+                    $assignmentService->assignDefaultDepartments($member, Auth::user());
 
-                        $member->departments()->syncWithoutDetaching([
-                            $department->id => [
-                                'assigned_by_user_id' => Auth::id(),
-                                'assignment_source' => 'manual',
-                                'started_at' => now()->toDateString(),
-                                'is_active' => true,
-                            ],
-                        ]);
-                    });
+                    collect($this->splitNames((string) ($row['departments'] ?? $row['idara'] ?? '')))
+                        ->each(function (string $departmentName) use ($member): void {
+                            $department = Department::firstOrCreate(
+                                ['slug' => Str::slug($departmentName)],
+                                ['name' => $departmentName, 'is_active' => true],
+                            );
 
-                $imported++;
+                            $member->departments()->syncWithoutDetaching([
+                                $department->id => [
+                                    'assigned_by_user_id' => Auth::id(),
+                                    'assignment_source' => 'manual',
+                                    'started_at' => now()->toDateString(),
+                                    'is_active' => true,
+                                ],
+                            ]);
+                        });
+                });
+
+                $this->recordImportedRow($rowNumber, $record);
+            } catch (Throwable $exception) {
+                $this->recordRejectedRow($rowNumber, $record, $this->importFailureMessages($exception));
             }
-        });
+        }
 
         $this->memberImport = null;
 
-        $this->dispatch('members-imported', count: $imported);
+        $this->dispatch('members-imported', count: $this->importReport['imported_count'], rejected: $this->importReport['rejected_count']);
     }
 
     public function render(): View
@@ -282,6 +294,22 @@ class Index extends Component
         $value = trim((string) $value);
 
         return $value === '' ? null : Carbon::parse($value)->toDateString();
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function memberImportRecordLabel(array $row): string
+    {
+        $name = trim(implode(' ', array_filter([
+            trim((string) ($row['first_name'] ?? $row['jina_la_kwanza'] ?? '')),
+            trim((string) ($row['middle_name'] ?? $row['jina_la_kati'] ?? '')),
+            trim((string) ($row['last_name'] ?? $row['jina_la_mwisho'] ?? '')),
+        ])));
+
+        $phone = trim((string) ($row['phone_number'] ?? $row['phone'] ?? $row['simu'] ?? ''));
+
+        return trim($name.($phone !== '' ? " ({$phone})" : ''));
     }
 
     private function findOrCreateZone(string $zoneName): Zone

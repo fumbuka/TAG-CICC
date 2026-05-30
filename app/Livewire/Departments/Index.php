@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Departments;
 
+use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
 use App\Services\SpreadsheetImportService;
 use Illuminate\Contracts\View\View;
@@ -11,10 +12,12 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Throwable;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use TracksImportResults;
     use WithFileUploads;
 
     public ?int $editingDepartmentId = null;
@@ -114,40 +117,47 @@ class Index extends Component
             'departmentImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
 
-        $imported = 0;
+        $rows = $importer->rowsWithMetadata($this->departmentImport);
+        $this->startImportReport('departments', count($rows));
 
-        foreach ($importer->rows($this->departmentImport) as $row) {
+        foreach ($rows as $entry) {
+            $rowNumber = $entry['row_number'];
+            $row = $entry['data'];
             $name = trim((string) ($row['name'] ?? $row['department_name'] ?? $row['jina'] ?? $row['jina_la_idara'] ?? ''));
 
-            $attributes = [
-                'name' => $name,
-                'slug' => Str::slug($name),
-                'description' => trim((string) ($row['description'] ?? $row['maelezo'] ?? '')) ?: null,
-                'is_age_based' => $this->normalizeBoolean($row['is_age_based'] ?? $row['age_rule'] ?? $row['inategemea_umri'] ?? $row['rule_ya_umri'] ?? false),
-                'minimum_age' => $this->normalizeInteger($row['minimum_age'] ?? $row['umri_wa_chini'] ?? null),
-                'maximum_age' => $this->normalizeInteger($row['maximum_age'] ?? $row['umri_wa_juu'] ?? null),
-                'gender_rule' => $this->normalizeGender($row['gender_rule'] ?? $row['jinsia'] ?? null),
-                'is_active' => true,
-            ];
+            try {
+                $attributes = [
+                    'name' => $name,
+                    'slug' => Str::slug($name),
+                    'description' => trim((string) ($row['description'] ?? $row['maelezo'] ?? '')) ?: null,
+                    'is_age_based' => $this->normalizeBoolean($row['is_age_based'] ?? $row['age_rule'] ?? $row['inategemea_umri'] ?? $row['rule_ya_umri'] ?? false),
+                    'minimum_age' => $this->normalizeInteger($row['minimum_age'] ?? $row['umri_wa_chini'] ?? null),
+                    'maximum_age' => $this->normalizeInteger($row['maximum_age'] ?? $row['umri_wa_juu'] ?? null),
+                    'gender_rule' => $this->normalizeGender($row['gender_rule'] ?? $row['jinsia'] ?? null),
+                    'is_active' => true,
+                ];
 
-            Validator::make($attributes, [
-                'name' => ['required', 'string', 'max:255'],
-                'minimum_age' => ['nullable', 'integer', 'min:0', 'max:120'],
-                'maximum_age' => ['nullable', 'integer', 'min:0', 'max:120', 'gte:minimum_age'],
-                'gender_rule' => ['nullable', Rule::in(['male', 'female'])],
-            ])->validate();
+                Validator::make($attributes, [
+                    'name' => ['required', 'string', 'max:255'],
+                    'minimum_age' => ['nullable', 'integer', 'min:0', 'max:120'],
+                    'maximum_age' => ['nullable', 'integer', 'min:0', 'max:120', 'gte:minimum_age'],
+                    'gender_rule' => ['nullable', Rule::in(['male', 'female'])],
+                ])->validate();
 
-            Department::updateOrCreate(
-                ['slug' => $attributes['slug']],
-                $attributes,
-            );
+                Department::updateOrCreate(
+                    ['slug' => $attributes['slug']],
+                    $attributes,
+                );
 
-            $imported++;
+                $this->recordImportedRow($rowNumber, $name);
+            } catch (Throwable $exception) {
+                $this->recordRejectedRow($rowNumber, $name, $this->importFailureMessages($exception));
+            }
         }
 
         $this->departmentImport = null;
 
-        $this->dispatch('departments-imported', count: $imported);
+        $this->dispatch('departments-imported', count: $this->importReport['imported_count'], rejected: $this->importReport['rejected_count']);
     }
 
     public function render(): View

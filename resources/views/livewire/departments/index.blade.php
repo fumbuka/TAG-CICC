@@ -136,7 +136,14 @@
             </section>
         </div>
 
-        <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+        <section
+            x-data="{ uploading: false, progress: 0 }"
+            x-on:livewire-upload-start="uploading = true; progress = 0"
+            x-on:livewire-upload-progress="progress = $event.detail.progress"
+            x-on:livewire-upload-finish="progress = 100; uploading = false"
+            x-on:livewire-upload-error="uploading = false"
+            class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm"
+        >
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.bulk_import_departments') }}</h2>
@@ -154,9 +161,13 @@
                     <x-input-error :messages="$errors->get('departmentImport')" class="mt-2" />
                 </div>
                 <x-primary-button wire:loading.attr="disabled" wire:target="departmentImport,import">
-                    {{ __('messages.upload') }}
+                    <span wire:loading.remove wire:target="departmentImport,import">{{ __('messages.upload') }}</span>
+                    <span wire:loading wire:target="departmentImport,import">{{ __('messages.uploading') }}</span>
                 </x-primary-button>
             </form>
+
+            <x-import-upload-status target="import" />
+            <x-import-report :report="$importReport" />
         </section>
     </div>
 </div>

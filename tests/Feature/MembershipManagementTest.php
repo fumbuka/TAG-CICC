@@ -143,6 +143,9 @@ class MembershipManagementTest extends TestCase
             ->set('memberImport', $file)
             ->call('import')
             ->assertHasNoErrors()
+            ->assertSet('importReport.total_rows', 1)
+            ->assertSet('importReport.imported_count', 1)
+            ->assertSet('importReport.rejected_count', 0)
             ->assertDispatched('members-imported');
 
         $member = Member::query()->where('phone_number', '0654849299')->firstOrFail();
@@ -150,6 +153,38 @@ class MembershipManagementTest extends TestCase
         $this->assertSame('Changombe', $member->zone?->name);
         $this->assertTrue($member->departments()->where('slug', 'wamama')->exists());
         $this->assertTrue($member->departments()->where('slug', 'maendeleo')->exists());
+    }
+
+    public function test_members_bulk_import_reports_successes_and_rejections(): void
+    {
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->createWithContent(
+            'members.csv',
+            "TAG-CICC - Kiolezo cha Kupakia Washirika\nfirst_name,last_name,gender,date_of_birth,phone_number,zone,departments\nRehema,John,female,,0711111111,Changombe,\nBaraka,Juma,other,2000-01-01,0722222222,,\n,NoFirst,male,,0733333333,,\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(MembersIndex::class)
+            ->set('memberImport', $file)
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertSet('importReport.total_rows', 3)
+            ->assertSet('importReport.imported_count', 1)
+            ->assertSet('importReport.rejected_count', 2)
+            ->assertDispatched('members-imported');
+
+        $this->assertDatabaseHas('members', [
+            'phone_number' => '0711111111',
+            'date_of_birth' => null,
+        ]);
+
+        $this->assertDatabaseMissing('members', [
+            'phone_number' => '0722222222',
+        ]);
+        $this->assertDatabaseMissing('members', [
+            'phone_number' => '0733333333',
+        ]);
     }
 
     public function test_department_can_be_created(): void
@@ -245,11 +280,43 @@ class MembershipManagementTest extends TestCase
             ->set('departmentImport', $file)
             ->call('import')
             ->assertHasNoErrors()
+            ->assertSet('importReport.total_rows', 1)
+            ->assertSet('importReport.imported_count', 1)
+            ->assertSet('importReport.rejected_count', 0)
             ->assertDispatched('departments-imported');
 
         $this->assertDatabaseHas('departments', [
             'name' => 'Media',
             'slug' => 'media',
+        ]);
+    }
+
+    public function test_departments_bulk_import_reports_successes_and_rejections(): void
+    {
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->createWithContent(
+            'departments.csv',
+            "TAG-CICC - Kiolezo cha Kupakia Idara\nname,description,is_age_based,minimum_age,maximum_age,gender_rule\nMedia,Idara ya matangazo,no,,,\n,,no,,,\nWazee,Idara ya wazee,yes,80,40,\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(DepartmentsIndex::class)
+            ->set('departmentImport', $file)
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertSet('importReport.total_rows', 3)
+            ->assertSet('importReport.imported_count', 1)
+            ->assertSet('importReport.rejected_count', 2)
+            ->assertDispatched('departments-imported');
+
+        $this->assertDatabaseHas('departments', [
+            'name' => 'Media',
+            'slug' => 'media',
+        ]);
+        $this->assertDatabaseMissing('departments', [
+            'name' => 'Wazee',
+            'slug' => 'wazee',
         ]);
     }
 
@@ -317,6 +384,9 @@ class MembershipManagementTest extends TestCase
             ->set('zoneImport', $file)
             ->call('import')
             ->assertHasNoErrors()
+            ->assertSet('importReport.total_rows', 2)
+            ->assertSet('importReport.imported_count', 2)
+            ->assertSet('importReport.rejected_count', 0)
             ->assertDispatched('zones-imported');
 
         $this->assertDatabaseHas('zones', [
@@ -326,6 +396,31 @@ class MembershipManagementTest extends TestCase
         $this->assertDatabaseHas('zones', [
             'name' => 'Kongowe',
             'slug' => 'kongowe',
+        ]);
+    }
+
+    public function test_zones_bulk_import_reports_successes_and_rejections(): void
+    {
+        $user = User::factory()->create();
+
+        $file = UploadedFile::fake()->createWithContent(
+            'zones.csv',
+            "TAG-CICC - Kiolezo cha Kupakia Kanda\nname,description\nMbagala,Washirika wa Mbagala\n,Ukanda bila jina\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(ZonesIndex::class)
+            ->set('zoneImport', $file)
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertSet('importReport.total_rows', 2)
+            ->assertSet('importReport.imported_count', 1)
+            ->assertSet('importReport.rejected_count', 1)
+            ->assertDispatched('zones-imported');
+
+        $this->assertDatabaseHas('zones', [
+            'name' => 'Mbagala',
+            'slug' => 'mbagala',
         ]);
     }
 

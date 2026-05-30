@@ -17,14 +17,26 @@ class SpreadsheetImportService
      */
     public function rows(UploadedFile $file): array
     {
+        return collect($this->rowsWithMetadata($file))
+            ->pluck('data')
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{row_number: int, data: array<string, mixed>}>
+     */
+    public function rowsWithMetadata(UploadedFile $file): array
+    {
         $reader = $this->readerFor($file);
         $reader->open($file->getRealPath());
 
         $headers = [];
         $rows = [];
+        $rowNumber = 0;
 
         foreach ($reader->getSheetIterator() as $sheet) {
             foreach ($sheet->getRowIterator() as $row) {
+                $rowNumber++;
                 $values = $row->toArray();
 
                 if ($this->isEmptyRow($values)) {
@@ -52,7 +64,10 @@ class SpreadsheetImportService
                 }
 
                 if (! $this->isEmptyRow($mapped)) {
-                    $rows[] = $mapped;
+                    $rows[] = [
+                        'row_number' => $rowNumber,
+                        'data' => $mapped,
+                    ];
                 }
             }
 
