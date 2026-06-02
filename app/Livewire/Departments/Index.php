@@ -4,6 +4,7 @@ namespace App\Livewire\Departments;
 
 use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
+use App\Models\ImportUpload;
 use App\Services\ImportReportExportService;
 use App\Services\SpreadsheetImportService;
 use Illuminate\Contracts\View\View;
@@ -119,8 +120,9 @@ class Index extends Component
             'departmentImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
 
+        $originalFilename = $this->departmentImport?->getClientOriginalName();
         $rows = $importer->rowsWithMetadata($this->departmentImport);
-        $this->startImportReport('departments', count($rows));
+        $this->startImportReport('departments', count($rows), $originalFilename);
 
         foreach ($rows as $entry) {
             $rowNumber = $entry['row_number'];
@@ -171,6 +173,12 @@ class Index extends Component
                 ->withCount('members')
                 ->orderByDesc('is_active')
                 ->orderBy('name')
+                ->get(),
+            'importUploads' => ImportUpload::query()
+                ->with('uploadedBy')
+                ->where('module', 'departments')
+                ->latest()
+                ->limit(10)
                 ->get(),
         ]);
     }

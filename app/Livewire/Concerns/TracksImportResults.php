@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Concerns;
 
+use App\Models\ImportUpload;
 use App\Services\ImportReportExportService;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Throwable;
@@ -15,10 +17,11 @@ trait TracksImportResults
      */
     public array $importReport = [];
 
-    protected function startImportReport(string $module, int $totalRows): void
+    protected function startImportReport(string $module, int $totalRows, ?string $originalFilename = null): void
     {
         $this->importReport = [
             'module' => $module,
+            'original_filename' => $originalFilename,
             'total_rows' => $totalRows,
             'imported_count' => 0,
             'rejected_count' => 0,
@@ -80,10 +83,22 @@ trait TracksImportResults
     {
         $report = $exporter->create($this->importReport, app()->getLocale());
 
+        ImportUpload::create([
+            'uploaded_by_user_id' => Auth::id(),
+            'module' => (string) ($this->importReport['module'] ?? 'import'),
+            'original_filename' => $this->importReport['original_filename'] ?? null,
+            'report_filename' => $report['filename'],
+            'report_path' => $report['relative_path'],
+            'total_rows' => (int) ($this->importReport['total_rows'] ?? 0),
+            'imported_count' => (int) ($this->importReport['imported_count'] ?? 0),
+            'rejected_count' => (int) ($this->importReport['rejected_count'] ?? 0),
+            'status' => 'completed',
+            'completed_at' => now(),
+        ]);
+
         return response()
             ->download($report['path'], $report['filename'], [
                 'Content-Type' => ImportReportExportService::CONTENT_TYPE,
-            ])
-            ->deleteFileAfterSend();
+            ]);
     }
 }

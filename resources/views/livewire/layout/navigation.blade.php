@@ -47,6 +47,7 @@ new class extends Component
                         ['label' => __('messages.register_member'), 'href' => route('members.index').'#register-member'],
                         ['label' => __('messages.members_list'), 'href' => route('members.index').'#members-list'],
                         ['label' => __('messages.bulk_import_members'), 'href' => route('members.index').'#bulk-import-members'],
+                        ['label' => __('messages.upload_history'), 'href' => route('members.index').'#members-upload-history'],
                     ],
                 ],
                 [
@@ -70,6 +71,7 @@ new class extends Component
                         ['label' => __('messages.add_department'), 'href' => route('departments.index').'#department-form'],
                         ['label' => __('messages.existing_departments'), 'href' => route('departments.index').'#departments-list'],
                         ['label' => __('messages.bulk_import_departments'), 'href' => route('departments.index').'#bulk-import-departments'],
+                        ['label' => __('messages.upload_history'), 'href' => route('departments.index').'#departments-upload-history'],
                     ],
                 ],
                 [
@@ -82,6 +84,7 @@ new class extends Component
                         ['label' => __('messages.add_zone'), 'href' => route('zones.index').'#zone-form'],
                         ['label' => __('messages.existing_zones'), 'href' => route('zones.index').'#zones-list'],
                         ['label' => __('messages.bulk_import_zones'), 'href' => route('zones.index').'#bulk-import-zones'],
+                        ['label' => __('messages.upload_history'), 'href' => route('zones.index').'#zones-upload-history'],
                     ],
                 ],
             ],

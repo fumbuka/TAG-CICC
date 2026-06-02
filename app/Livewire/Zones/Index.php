@@ -3,6 +3,7 @@
 namespace App\Livewire\Zones;
 
 use App\Livewire\Concerns\TracksImportResults;
+use App\Models\ImportUpload;
 use App\Models\Zone;
 use App\Services\ImportReportExportService;
 use App\Services\SpreadsheetImportService;
@@ -99,8 +100,9 @@ class Index extends Component
             'zoneImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
 
+        $originalFilename = $this->zoneImport?->getClientOriginalName();
         $rows = $importer->rowsWithMetadata($this->zoneImport);
-        $this->startImportReport('zones', count($rows));
+        $this->startImportReport('zones', count($rows), $originalFilename);
 
         foreach ($rows as $entry) {
             $rowNumber = $entry['row_number'];
@@ -144,6 +146,12 @@ class Index extends Component
                 ->withCount('members')
                 ->orderByDesc('is_active')
                 ->orderBy('name')
+                ->get(),
+            'importUploads' => ImportUpload::query()
+                ->with('uploadedBy')
+                ->where('module', 'zones')
+                ->latest()
+                ->limit(10)
                 ->get(),
         ]);
     }

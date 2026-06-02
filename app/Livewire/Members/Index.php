@@ -4,6 +4,7 @@ namespace App\Livewire\Members;
 
 use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
+use App\Models\ImportUpload;
 use App\Models\Member;
 use App\Models\Zone;
 use App\Services\ImportReportExportService;
@@ -169,8 +170,9 @@ class Index extends Component
             'memberImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
 
+        $originalFilename = $this->memberImport?->getClientOriginalName();
         $rows = $importer->rowsWithMetadata($this->memberImport);
-        $this->startImportReport('members', count($rows));
+        $this->startImportReport('members', count($rows), $originalFilename);
 
         foreach ($rows as $entry) {
             $rowNumber = $entry['row_number'];
@@ -262,6 +264,12 @@ class Index extends Component
             'members' => $members,
             'departments' => $scope->applyDepartmentScope(Department::query()->where('is_active', true))->orderBy('name')->get(),
             'zones' => $scope->applyZoneScope(Zone::query()->where('is_active', true))->orderBy('name')->get(),
+            'importUploads' => ImportUpload::query()
+                ->with('uploadedBy')
+                ->where('module', 'members')
+                ->latest()
+                ->limit(10)
+                ->get(),
         ]);
     }
 

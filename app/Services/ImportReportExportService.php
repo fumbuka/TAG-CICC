@@ -12,7 +12,7 @@ class ImportReportExportService
 
     /**
      * @param  array<string, mixed>  $report
-     * @return array{path: string, filename: string}
+     * @return array{path: string, relative_path: string, filename: string}
      */
     public function create(array $report, string $locale): array
     {
@@ -22,7 +22,8 @@ class ImportReportExportService
             Str::slug($module),
             now()->format('Ymd-His'),
         );
-        $path = $this->temporaryPath($filename);
+        $paths = $this->temporaryPath($filename);
+        $path = $paths['path'];
         $labels = $this->labels($locale);
 
         $writer = new Writer;
@@ -52,6 +53,7 @@ class ImportReportExportService
 
         return [
             'path' => $path,
+            'relative_path' => $paths['relative_path'],
             'filename' => $filename,
         ];
     }
@@ -153,7 +155,10 @@ class ImportReportExportService
         ];
     }
 
-    private function temporaryPath(string $filename): string
+    /**
+     * @return array{path: string, relative_path: string}
+     */
+    private function temporaryPath(string $filename): array
     {
         $directory = storage_path('app/private/import-reports');
 
@@ -161,6 +166,11 @@ class ImportReportExportService
             mkdir($directory, 0755, true);
         }
 
-        return $directory.'/'.Str::uuid().'-'.$filename;
+        $storedFilename = Str::uuid().'-'.$filename;
+
+        return [
+            'path' => $directory.'/'.$storedFilename,
+            'relative_path' => 'import-reports/'.$storedFilename,
+        ];
     }
 }

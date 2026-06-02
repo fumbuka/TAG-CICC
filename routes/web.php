@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BulkImportTemplateController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ImportUploadReportController;
 use App\Livewire\Calendar\Index as CalendarIndex;
 use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Finance\Index as FinanceIndex;
@@ -55,6 +56,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('bulk-import-templates/{type}', BulkImportTemplateController::class)
         ->middleware('permission:members.import|departments.manage|zones.manage')
         ->name('bulk-import-templates.download');
+
+    Route::get('import-uploads/{importUpload}/report', ImportUploadReportController::class)
+        ->middleware('permission:members.import|departments.manage|zones.manage')
+        ->name('import-uploads.report');
 
     Route::get('members', MembersIndex::class)
         ->middleware('permission:members.view')

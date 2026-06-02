@@ -218,5 +218,7 @@
             <x-import-upload-status target="import" />
             <x-import-report :report="$importReport" />
         </section>
+
+        <x-import-history id="members-upload-history" class="scroll-mt-24" :uploads="$importUploads" />
     </div>
 </div>

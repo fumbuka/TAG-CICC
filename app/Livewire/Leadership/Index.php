@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\LeadershipTitle;
 use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
+use App\Models\User;
 use App\Models\Zone;
 use App\Support\LeadershipSystemAccess;
 use Illuminate\Contracts\View\View;
@@ -170,17 +171,29 @@ class Index extends Component
         });
 
         $this->accessCredentials = $accessCredentials ? [
-            'name' => $accessCredentials['user']->name,
-            'email' => $accessCredentials['email'],
-            'phone_number' => $accessCredentials['phone_number'],
-            'password' => $accessCredentials['password'],
-            'role_name' => $accessCredentials['role_name'],
-            'created' => $accessCredentials['created'],
+            ...$this->credentialPayload($accessCredentials),
         ] : null;
 
         $this->resetAssignmentForm();
 
         $this->dispatch($wasEditing ? 'assignment-updated' : 'assignment-created');
+    }
+
+    public function grantAssignmentAccess(int $assignmentId, LeadershipSystemAccess $systemAccess): void
+    {
+        $assignment = MemberLeadershipAssignment::with(['member', 'leadershipTitle'])->findOrFail($assignmentId);
+
+        if (! $assignment->is_active) {
+            $this->addError('assignment_access', __('messages.leader_access_requires_active_assignment'));
+
+            return;
+        }
+
+        $accessCredentials = $systemAccess->grant($assignment->member, $assignment->leadershipTitle);
+
+        $this->accessCredentials = $this->credentialPayload($accessCredentials);
+
+        $this->dispatch('leader-access-granted');
     }
 
     public function editAssignment(int $assignmentId): void
@@ -220,7 +233,7 @@ class Index extends Component
                 ->orderBy('name')
                 ->get(),
             'assignments' => MemberLeadershipAssignment::query()
-                ->with(['member', 'leadershipTitle', 'department', 'zone'])
+                ->with(['member.user', 'leadershipTitle', 'department', 'zone'])
                 ->latest()
                 ->get(),
             'members' => Member::query()->orderBy('first_name')->orderBy('last_name')->get(),
@@ -250,5 +263,21 @@ class Index extends Component
         ]);
         $this->assignment_is_active = true;
         $this->resetErrorBag();
+    }
+
+    /**
+     * @param  array{user: User, role_name: string, email: string, phone_number: ?string, password: ?string, created: bool}  $accessCredentials
+     * @return array{name: string, email: string, phone_number: ?string, password: ?string, role_name: string, created: bool}
+     */
+    private function credentialPayload(array $accessCredentials): array
+    {
+        return [
+            'name' => $accessCredentials['user']->name,
+            'email' => $accessCredentials['email'],
+            'phone_number' => $accessCredentials['phone_number'],
+            'password' => $accessCredentials['password'],
+            'role_name' => $accessCredentials['role_name'],
+            'created' => $accessCredentials['created'],
+        ];
     }
 }

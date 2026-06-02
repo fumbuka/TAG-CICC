@@ -13,12 +13,17 @@
             x-on:assignment-created.window="message = '{{ __('messages.leadership_assignment_created') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:assignment-updated.window="message = '{{ __('messages.leadership_assignment_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:assignment-deleted.window="message = '{{ __('messages.leadership_assignment_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:leader-access-granted.window="message = '{{ __('messages.leader_access_granted') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
             x-text="message"></div>
 
         @error('title_delete')
+            <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
+        @enderror
+
+        @error('assignment_access')
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
@@ -246,6 +251,7 @@
                                 <th class="px-5 py-3">{{ __('messages.member') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.leadership_title') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.context') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.leader_login_access') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.status') }}</th>
                                 <th class="px-5 py-3">{{ __('messages.actions') }}</th>
                             </tr>
@@ -263,6 +269,15 @@
                                     <td class="px-5 py-4">
                                         <span @class([
                                             'rounded-full px-2 py-1 text-xs font-medium',
+                                            'bg-emerald-50 text-emerald-700' => (bool) $assignment->member->user,
+                                            'bg-amber-50 text-amber-700' => ! $assignment->member->user,
+                                        ])>
+                                            {{ $assignment->member->user ? __('messages.has_login_access') : __('messages.missing_login_access') }}
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        <span @class([
+                                            'rounded-full px-2 py-1 text-xs font-medium',
                                             'bg-emerald-50 text-emerald-700' => $assignment->is_active,
                                             'bg-gray-100 text-gray-600' => ! $assignment->is_active,
                                         ])>
@@ -272,13 +287,14 @@
                                     <td class="px-5 py-4">
                                         <div class="flex flex-wrap gap-3">
                                             <button wire:click="editAssignment({{ $assignment->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
+                                            <button wire:click="grantAssignmentAccess({{ $assignment->id }})" type="button" class="text-sm font-medium text-amber-700 hover:text-amber-900">{{ __('messages.grant_login_access') }}</button>
                                             <button wire:click="deleteAssignment({{ $assignment->id }})" wire:confirm="{{ __('messages.confirm_delete_leadership_assignment') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
                                         </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="5" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_leadership_assignments') }}</td>
+                                    <td colspan="6" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_leadership_assignments') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>

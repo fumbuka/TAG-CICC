@@ -6,6 +6,7 @@ use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Members\Index as MembersIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
 use App\Models\Department;
+use App\Models\ImportUpload;
 use App\Models\LeadershipTitle;
 use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
@@ -262,6 +263,14 @@ class MembershipManagementTest extends TestCase
         $this->assertDatabaseMissing('members', [
             'phone_number' => '0733333333',
         ]);
+
+        $upload = ImportUpload::query()->where('module', 'members')->firstOrFail();
+
+        $this->assertSame('members.csv', $upload->original_filename);
+        $this->assertSame(3, $upload->total_rows);
+        $this->assertSame(1, $upload->imported_count);
+        $this->assertSame(2, $upload->rejected_count);
+        $this->assertTrue(is_file(storage_path('app/private/'.$upload->report_path)));
     }
 
     public function test_department_can_be_created(): void
@@ -400,6 +409,14 @@ class MembershipManagementTest extends TestCase
             'name' => 'Wazee',
             'slug' => 'wazee',
         ]);
+
+        $this->assertDatabaseHas('import_uploads', [
+            'module' => 'departments',
+            'original_filename' => 'departments.csv',
+            'total_rows' => 3,
+            'imported_count' => 1,
+            'rejected_count' => 2,
+        ]);
     }
 
     public function test_zone_can_be_created(): void
@@ -509,6 +526,43 @@ class MembershipManagementTest extends TestCase
             'name' => 'Mbagala',
             'slug' => 'mbagala',
         ]);
+
+        $this->assertDatabaseHas('import_uploads', [
+            'module' => 'zones',
+            'original_filename' => 'zones.csv',
+            'total_rows' => 2,
+            'imported_count' => 1,
+            'rejected_count' => 1,
+        ]);
+    }
+
+    public function test_upload_history_report_can_be_downloaded(): void
+    {
+        $this->travelTo('2026-05-30 09:15:00');
+        $user = User::factory()->create();
+        Permission::create([
+            'name' => 'members.import',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('members.import');
+
+        $file = UploadedFile::fake()->createWithContent(
+            'members.csv',
+            "TAG-CICC - Kiolezo cha Kupakia Washirika\nfirst_name,last_name,gender,date_of_birth,phone_number,zone,departments\nRehema,John,female,,0711111111,Changombe,\n",
+        );
+
+        Livewire::actingAs($user)
+            ->test(MembersIndex::class)
+            ->set('memberImport', $file)
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $upload = ImportUpload::query()->where('module', 'members')->firstOrFail();
+
+        $this->actingAs($user)
+            ->get(route('import-uploads.report', $upload))
+            ->assertOk()
+            ->assertDownload($upload->report_filename);
     }
 
     public function test_user_can_choose_a_language(): void

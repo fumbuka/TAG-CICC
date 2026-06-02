@@ -158,6 +158,42 @@ class LeadershipManagementTest extends TestCase
         $this->assertStringContainsString('baraka.mzee@tag-cicc.or.tz', Artisan::output());
     }
 
+    public function test_existing_leadership_assignment_can_be_granted_login_access_from_page(): void
+    {
+        $admin = User::factory()->create();
+        $member = Member::create([
+            'first_name' => 'Joseph',
+            'last_name' => 'Katibu',
+            'gender' => 'male',
+            'email' => 'joseph.katibu@tag-cicc.or.tz',
+        ]);
+        $title = LeadershipTitle::create([
+            'name' => 'Katibu wa Kanisa',
+            'slug' => 'katibu-wa-kanisa',
+            'scope' => 'church',
+        ]);
+        $assignment = MemberLeadershipAssignment::create([
+            'member_id' => $member->id,
+            'leadership_title_id' => $title->id,
+            'is_active' => true,
+        ]);
+
+        $component = Livewire::actingAs($admin)
+            ->test(LeadershipIndex::class)
+            ->call('grantAssignmentAccess', $assignment->id)
+            ->assertHasNoErrors()
+            ->assertDispatched('leader-access-granted')
+            ->assertSet('accessCredentials.role_name', 'Katibu wa Kanisa')
+            ->assertSet('accessCredentials.email', 'joseph.katibu@tag-cicc.or.tz');
+
+        $credentials = $component->get('accessCredentials');
+        $user = User::query()->where('email', 'joseph.katibu@tag-cicc.or.tz')->firstOrFail();
+
+        $this->assertSame($user->id, $member->refresh()->user_id);
+        $this->assertTrue($user->hasRole('Katibu wa Kanisa'));
+        $this->assertTrue(Hash::check($credentials['password'], $user->password));
+    }
+
     public function test_department_level_title_requires_department(): void
     {
         $user = User::factory()->create();
