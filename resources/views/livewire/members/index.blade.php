@@ -1,11 +1,48 @@
 <div class="py-8">
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-sm font-medium text-emerald-700">{{ __('messages.membership') }}</p>
-                <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.members') }}</h1>
-                <p class="mt-1 text-sm text-gray-600">{{ __('messages.member_form_help') }}</p>
+                <h1 class="text-2xl font-semibold text-gray-950">
+                    @if ($section === 'create')
+                        {{ $editingMemberId ? __('messages.edit_member') : __('messages.register_member') }}
+                    @elseif ($section === 'import')
+                        {{ __('messages.bulk_import_members') }}
+                    @elseif ($section === 'relationships')
+                        {{ __('messages.member_relationships') }}
+                    @else
+                        {{ __('messages.members_list') }}
+                    @endif
+                </h1>
+                <p class="mt-1 text-sm text-gray-600">
+                    @if ($section === 'list')
+                        {{ __('messages.members_list_help') }}
+                    @elseif ($section === 'relationships')
+                        {{ __('messages.member_relationships_help') }}
+                    @else
+                        {{ __('messages.member_form_help') }}
+                    @endif
+                </p>
             </div>
+            @if ($section === 'list')
+                <div class="flex flex-wrap gap-2">
+                    @if ($canCreateMembers)
+                        <a href="{{ route('members.index', 'create') }}" wire:navigate class="inline-flex items-center justify-center rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-800">
+                            {{ __('messages.register_member') }}
+                        </a>
+                    @endif
+                    @if ($canImportMembers)
+                        <a href="{{ route('members.index', 'import') }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-800">
+                            {{ __('messages.bulk_import_members') }}
+                        </a>
+                    @endif
+                    @if ($canManageRelationships)
+                        <a href="{{ route('members.index', 'relationships') }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-800">
+                            {{ __('messages.member_relationships') }}
+                        </a>
+                    @endif
+                </div>
+            @endif
         </div>
 
         <div x-data="{ show: false, message: '' }"
@@ -13,6 +50,8 @@
             x-on:member-updated.window="message = '{{ __('messages.member_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:member-deleted.window="message = '{{ __('messages.member_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:members-imported.window="message = '{{ __('messages.members_imported') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:relationship-saved.window="message = '{{ __('messages.relationship_saved') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:relationship-deleted.window="message = '{{ __('messages.relationship_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -22,7 +61,7 @@
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
-        <div class="grid gap-6 lg:grid-cols-[0.95fr_1.4fr]">
+        @if ($section === 'create')
             <section id="register-member" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingMemberId ? __('messages.edit_member') : __('messages.register_member') }}
@@ -121,7 +160,9 @@
                     </div>
                 </form>
             </section>
+        @endif
 
+        @if ($section === 'list')
             <section id="members-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -160,12 +201,16 @@
                                     </td>
                                     <td class="px-5 py-4">
                                         <div class="flex flex-wrap gap-3">
-                                            <button wire:click="edit({{ $member->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-                                                {{ __('messages.edit') }}
-                                            </button>
-                                            <button wire:click="delete({{ $member->id }})" wire:confirm="{{ __('messages.confirm_delete_member') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
-                                                {{ __('messages.delete') }}
-                                            </button>
+                                            @if ($canUpdateMembers)
+                                                <button wire:click="edit({{ $member->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                                    {{ __('messages.edit') }}
+                                                </button>
+                                                <button wire:click="delete({{ $member->id }})" wire:confirm="{{ __('messages.confirm_delete_member') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                    {{ __('messages.delete') }}
+                                                </button>
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -182,8 +227,9 @@
                     {{ $members->links() }}
                 </div>
             </section>
-        </div>
+        @endif
 
+        @if ($section === 'import')
         <section
             id="bulk-import-members"
             x-data="{ uploading: false, progress: 0 }"
@@ -220,5 +266,113 @@
         </section>
 
         <x-import-history id="members-upload-history" class="scroll-mt-24" :uploads="$importUploads" />
+        @endif
+
+        @if ($section === 'relationships')
+            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.member_relationships') }}</h2>
+                        <p class="mt-1 max-w-3xl text-sm leading-6 text-gray-600">{{ __('messages.member_relationships_help') }}</p>
+                    </div>
+                    <a href="{{ route('members.index') }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-800">
+                        {{ __('messages.members_list') }}
+                    </a>
+                </div>
+
+                <form wire:submit="saveRelationship" class="mt-5 space-y-4">
+                    <div class="grid gap-4 lg:grid-cols-3">
+                        <div>
+                            <x-input-label for="relationship_member_id" :value="__('messages.relationship_member')" />
+                            <select wire:model="relationship_member_id" id="relationship_member_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">{{ __('messages.no_member_selected') }}</option>
+                                @foreach ($relationshipMembers as $member)
+                                    <option value="{{ $member->id }}">{{ $member->fullName() }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('relationship_member_id')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="related_member_id" :value="__('messages.related_member')" />
+                            <select wire:model="related_member_id" id="related_member_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">{{ __('messages.no_member_selected') }}</option>
+                                @foreach ($relationshipMembers as $member)
+                                    <option value="{{ $member->id }}">{{ $member->fullName() }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('related_member_id')" class="mt-2" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="relationship_type" :value="__('messages.relationship_type')" />
+                            <select wire:model="relationship_type" id="relationship_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                @foreach ($relationshipTypes as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('relationship_type')" class="mt-2" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <x-input-label for="relationship_notes" :value="__('messages.notes')" />
+                        <textarea wire:model="relationship_notes" id="relationship_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                        <x-input-error :messages="$errors->get('relationship_notes')" class="mt-2" />
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        @if ($editingRelationshipId)
+                            <x-secondary-button type="button" wire:click="cancelRelationshipEdit">{{ __('messages.cancel') }}</x-secondary-button>
+                        @endif
+                        <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div class="border-b border-gray-200 p-5">
+                    <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.existing_relationships') }}</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                            <tr>
+                                <th class="px-5 py-3">{{ __('messages.relationship_member') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.related_member') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.relationship_type') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.notes') }}</th>
+                                <th class="px-5 py-3">{{ __('messages.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @forelse ($relationships as $relationship)
+                                <tr>
+                                    <td class="px-5 py-4 font-medium text-gray-950">{{ $relationship->member?->fullName() ?: '-' }}</td>
+                                    <td class="px-5 py-4 text-gray-600">{{ $relationship->relatedMember?->fullName() ?: '-' }}</td>
+                                    <td class="px-5 py-4 text-gray-600">{{ $relationshipTypes[$relationship->relationship_type] ?? $relationship->relationship_type }}</td>
+                                    <td class="px-5 py-4 text-gray-600">{{ $relationship->notes ?: '-' }}</td>
+                                    <td class="px-5 py-4">
+                                        <div class="flex flex-wrap gap-3">
+                                            <button wire:click="editRelationship({{ $relationship->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                                {{ __('messages.edit') }}
+                                            </button>
+                                            <button wire:click="deleteRelationship({{ $relationship->id }})" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                {{ __('messages.delete') }}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="px-5 py-8 text-center text-gray-500">{{ __('messages.no_records') }}</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        @endif
     </div>
 </div>

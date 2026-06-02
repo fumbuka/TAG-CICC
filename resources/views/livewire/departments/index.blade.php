@@ -1,9 +1,18 @@
 <div class="py-8">
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <div>
-            <p class="text-sm font-medium text-emerald-700">{{ __('messages.departments') }}</p>
-            <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.departments') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('messages.department_help') }}</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-sm font-medium text-emerald-700">{{ __('messages.departments') }}</p>
+                <h1 class="text-2xl font-semibold text-gray-950">
+                    {{ $section === 'list' ? __('messages.existing_departments') : __('messages.add_department') }}
+                </h1>
+                <p class="mt-1 text-sm text-gray-600">{{ __('messages.department_help') }}</p>
+            </div>
+            @if ($section === 'list' && $canCreateDepartments)
+                <a href="{{ route('departments.index', 'create') }}" wire:navigate class="inline-flex items-center justify-center rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-800">
+                    {{ __('messages.add_department') }}
+                </a>
+            @endif
         </div>
 
         <div x-data="{ show: false, message: '' }"
@@ -20,7 +29,7 @@
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
-        <div class="grid gap-6 lg:grid-cols-[0.8fr_1.4fr]">
+        @if ($section !== 'list' && $canCreateDepartments)
             <section id="department-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingDepartmentId ? __('messages.edit_department') : __('messages.add_department') }}
@@ -76,7 +85,9 @@
                     </div>
                 </form>
             </section>
+        @endif
 
+        @if ($section === 'list')
             <section id="departments-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.existing_departments') }}</h2>
@@ -117,15 +128,19 @@
                                     </td>
                                     <td class="px-5 py-4">
                                         <div class="flex flex-wrap gap-3">
-                                            <button wire:click="edit({{ $department->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-                                                {{ __('messages.edit') }}
-                                            </button>
-                                            <button wire:click="toggleActive({{ $department->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
-                                                {{ $department->is_active ? __('messages.deactivate') : __('messages.activate') }}
-                                            </button>
-                                            <button wire:click="delete({{ $department->id }})" wire:confirm="{{ __('messages.confirm_delete_department') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
-                                                {{ __('messages.delete') }}
-                                            </button>
+                                            @if ($canManageDepartments)
+                                                <button wire:click="edit({{ $department->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                                    {{ __('messages.edit') }}
+                                                </button>
+                                                <button wire:click="toggleActive({{ $department->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
+                                                    {{ $department->is_active ? __('messages.deactivate') : __('messages.activate') }}
+                                                </button>
+                                                <button wire:click="delete({{ $department->id }})" wire:confirm="{{ __('messages.confirm_delete_department') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">
+                                                    {{ __('messages.delete') }}
+                                                </button>
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -134,8 +149,9 @@
                     </table>
                 </div>
             </section>
-        </div>
+        @endif
 
+        @if ($section !== 'list' && $canImportDepartments)
         <section
             id="bulk-import-departments"
             x-data="{ uploading: false, progress: 0 }"
@@ -172,5 +188,6 @@
         </section>
 
         <x-import-history id="departments-upload-history" class="scroll-mt-24" :uploads="$importUploads" />
+        @endif
     </div>
 </div>

@@ -3,11 +3,37 @@
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <p class="text-sm font-medium text-emerald-700">{{ __('messages.finance') }}</p>
-                <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.finance') }}</h1>
+                <h1 class="text-2xl font-semibold text-gray-950">
+                    @if ($section === 'income-categories')
+                        {{ __('messages.manage_income_categories') }}
+                    @elseif ($section === 'expense-categories')
+                        {{ __('messages.manage_expense_categories') }}
+                    @elseif ($section === 'expenses')
+                        {{ __('messages.expenses') }}
+                    @elseif ($section === 'pledges')
+                        {{ __('messages.pledges') }}
+                    @elseif ($section === 'transactions')
+                        {{ __('messages.transactions') }}
+                    @else
+                        {{ __('messages.finance') }}
+                    @endif
+                </h1>
                 <p class="mt-1 text-sm text-gray-600">{{ __('messages.finance_form_help') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($financeSections as $financeSection => $label)
+                    <a href="{{ route('finance.index', $financeSection) }}" wire:navigate @class([
+                        'inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-semibold shadow-sm transition',
+                        'bg-red-700 text-white hover:bg-red-800' => $section === $financeSection,
+                        'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== $financeSection,
+                    ])>
+                        {{ $label }}
+                    </a>
+                @endforeach
             </div>
         </div>
 
+        @if ($section === 'summary')
         <div id="finance-summary" class="scroll-mt-24 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.today_total') }}</p>
@@ -33,7 +59,21 @@
                 <p class="text-sm font-medium text-gray-500">{{ __('messages.pledge_balance') }}</p>
                 <p class="mt-2 text-2xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format((float) $totalPledgeBalance, 2) }}</p>
             </div>
+            @if ($departments->isNotEmpty() || $zones->isNotEmpty())
+                <div class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm sm:col-span-2 lg:col-span-3 xl:col-span-6">
+                    <p class="text-sm font-semibold text-gray-500">{{ __('messages.finance_scope') }}</p>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach ($departments as $department)
+                            <span class="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">{{ $department->name }}</span>
+                        @endforeach
+                        @foreach ($zones as $zone)
+                            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{{ $zone->name }}</span>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
+        @endif
 
         <div x-data="{ show: false, message: '' }"
             x-on:transaction-created.window="message = '{{ __('messages.transaction_created') }}'; show = true; setTimeout(() => show = false, 3500)"
@@ -76,7 +116,7 @@
             </div>
         @endunless
 
-        @if ($canRecordFinance)
+        @if ($canRecordFinance && $section === 'income-categories')
         <section id="income-categories" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
@@ -103,6 +143,20 @@
                         <x-input-error :messages="$errors->get('category_description')" class="mt-2" />
                     </div>
 
+                    <div>
+                        <x-input-label :value="__('messages.related_departments')" />
+                        <p class="mt-1 text-xs text-gray-500">{{ __('messages.income_category_departments_help') }}</p>
+                        <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                            @foreach ($departments as $department)
+                                <label class="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                                    <input wire:model="category_department_ids" type="checkbox" value="{{ $department->id }}" class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600">
+                                    <span>{{ $department->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <x-input-error :messages="$errors->get('category_department_ids')" class="mt-2" />
+                    </div>
+
                     <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
                         <input wire:model="category_is_active" type="checkbox" class="rounded border-gray-300 text-emerald-600 shadow-sm focus:ring-emerald-500">
                         <span>{{ __('messages.active') }}</span>
@@ -121,6 +175,7 @@
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
                             <tr>
                                 <th class="px-4 py-3">{{ __('messages.income_category') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.departments') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.status') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.records') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.actions') }}</th>
@@ -132,6 +187,9 @@
                                     <td class="px-4 py-3">
                                         <div class="font-medium text-gray-950">{{ $incomeCategory->name }}</div>
                                         <div class="text-xs text-gray-500">{{ $incomeCategory->description ?: '-' }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600">
+                                        {{ $incomeCategory->departments->pluck('name')->join(', ') ?: __('messages.all_departments') }}
                                     </td>
                                     <td class="px-4 py-3">
                                         <span @class([
@@ -162,7 +220,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="4" class="px-4 py-8 text-center text-gray-500">{{ __('messages.no_income_categories') }}</td>
+                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">{{ __('messages.no_income_categories') }}</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -172,7 +230,7 @@
         </section>
         @endif
 
-        @if ($canRecordFinance)
+        @if ($canRecordFinance && $section === 'expense-categories')
         <section id="expense-categories" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
@@ -267,6 +325,7 @@
         </section>
         @endif
 
+        @if ($section === 'expenses')
         <section id="expenses" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
@@ -430,7 +489,9 @@
                 </div>
             </div>
         </section>
+        @endif
 
+        @if ($section === 'pledges')
         <section id="pledges" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-200 p-5">
                 <div class="flex flex-col gap-1">
@@ -741,7 +802,9 @@
                 </div>
             </div>
         </section>
+        @endif
 
+        @if ($section === 'transactions')
         <div id="transactions" @class([
             'scroll-mt-24',
             'grid gap-6',
@@ -906,5 +969,6 @@
                 </div>
             </section>
         </div>
+        @endif
     </div>
 </div>

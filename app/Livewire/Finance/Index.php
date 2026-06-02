@@ -27,6 +27,8 @@ class Index extends Component
 {
     use WithPagination;
 
+    public string $section = 'summary';
+
     public ?int $editingCategoryId = null;
 
     public string $category_name = '';
@@ -34,6 +36,9 @@ class Index extends Component
     public string $category_description = '';
 
     public bool $category_is_active = true;
+
+    /** @var array<int> */
+    public array $category_department_ids = [];
 
     public ?int $editingExpenseCategoryId = null;
 
@@ -117,8 +122,12 @@ class Index extends Component
 
     public string $payment_notes = '';
 
-    public function mount(): void
+    public function mount(?string $section = null): void
     {
+        $this->section = $section ?: 'summary';
+
+        abort_unless($this->canAccessFinanceSection($this->section), 403);
+
         $this->transaction_date = now()->toDateString();
         $this->expense_date = now()->toDateString();
         $this->pledged_at = now()->toDateString();
@@ -138,6 +147,8 @@ class Index extends Component
             'category_name' => ['required', 'string', 'max:255', Rule::unique('income_categories', 'name')->ignore($this->editingCategoryId)],
             'category_description' => ['nullable', 'string', 'max:1000'],
             'category_is_active' => ['boolean'],
+            'category_department_ids' => ['array'],
+            'category_department_ids.*' => ['integer', Rule::exists('departments', 'id')],
         ]);
 
         $attributes = [
@@ -149,9 +160,11 @@ class Index extends Component
 
         $wasEditing = $this->editingCategoryId !== null;
 
-        $wasEditing
-            ? IncomeCategory::findOrFail($this->editingCategoryId)->update($attributes)
+        $category = $wasEditing
+            ? tap(IncomeCategory::findOrFail($this->editingCategoryId))->update($attributes)
             : IncomeCategory::create($attributes);
+
+        $category->departments()->sync($validated['category_department_ids']);
 
         $this->resetCategoryForm();
 
@@ -162,12 +175,13 @@ class Index extends Component
     {
         abort_unless($this->canRecordFinance(), 403);
 
-        $category = IncomeCategory::findOrFail($categoryId);
+        $category = IncomeCategory::with('departments')->findOrFail($categoryId);
 
         $this->editingCategoryId = $category->id;
         $this->category_name = $category->name;
         $this->category_description = $category->description ?? '';
         $this->category_is_active = $category->is_active;
+        $this->category_department_ids = $category->departments->pluck('id')->all();
     }
 
     public function cancelCategoryEdit(): void
@@ -700,9 +714,12 @@ class Index extends Component
         $totalExpenses = (clone $expensesQuery)->sum('amount');
 
         return view('livewire.finance.index', [
+            'section' => $this->section,
+            'financeSections' => $this->financeSections(),
             'transactions' => $transactions,
             'incomeCategories' => IncomeCategory::query()->where('is_active', true)->orderBy('name')->get(),
             'allIncomeCategories' => IncomeCategory::query()
+                ->with('departments')
                 ->withCount(['financialTransactions', 'pledges'])
                 ->orderByDesc('is_active')
                 ->orderBy('name')
@@ -744,7 +761,7 @@ class Index extends Component
 
     private function resetCategoryForm(): void
     {
-        $this->reset(['editingCategoryId', 'category_name', 'category_description']);
+        $this->reset(['editingCategoryId', 'category_name', 'category_description', 'category_department_ids']);
         $this->category_is_active = true;
         $this->resetErrorBag();
     }
@@ -840,5 +857,38 @@ class Index extends Component
     private function canRecordFinance(): bool
     {
         return Auth::user()?->can('finance.record') ?? false;
+    }
+
+    private function canAccessFinanceSection(string $section): bool
+    {
+        if (Auth::user()?->can('finance.record')) {
+            return true;
+        }
+
+        return match ($section) {
+            'income-categories' => Auth::user()?->can('finance.income-categories') ?? false,
+            'expense-categories' => Auth::user()?->can('finance.expense-categories') ?? false,
+            'expenses' => Auth::user()?->can('finance.expenses') ?? false,
+            'pledges' => Auth::user()?->can('finance.pledges') ?? false,
+            'transactions' => Auth::user()?->can('finance.transactions') || Auth::user()?->can('finance.view'),
+            default => Auth::user()?->can('finance.summary') || Auth::user()?->can('finance.view'),
+        };
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function financeSections(): array
+    {
+        return collect([
+            'summary' => __('messages.overview'),
+            'income-categories' => __('messages.income_category'),
+            'expense-categories' => __('messages.expense_category'),
+            'expenses' => __('messages.expenses'),
+            'pledges' => __('messages.pledges'),
+            'transactions' => __('messages.transactions'),
+        ])
+            ->filter(fn (string $label, string $section): bool => $this->canAccessFinanceSection($section))
+            ->all();
     }
 }

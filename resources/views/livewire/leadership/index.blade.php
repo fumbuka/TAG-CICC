@@ -1,9 +1,42 @@
 <div class="py-8">
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <div>
-            <p class="text-sm font-medium text-emerald-700">{{ __('messages.leadership') }}</p>
-            <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.leadership') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('messages.leadership_help') }}</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-sm font-medium text-emerald-700">{{ __('messages.leadership') }}</p>
+                <h1 class="text-2xl font-semibold text-gray-950">
+                    @if ($section === 'titles')
+                        {{ __('messages.leadership_titles') }}
+                    @elseif ($section === 'assign')
+                        {{ __('messages.assign_leadership') }}
+                    @else
+                        {{ __('messages.leadership_assignments') }}
+                    @endif
+                </h1>
+                <p class="mt-1 text-sm text-gray-600">{{ __('messages.leadership_help') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                @if ($canManageTitles)
+                    <a href="{{ route('leadership.index', 'titles') }}" wire:navigate @class([
+                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition',
+                        'bg-red-700 text-white hover:bg-red-800' => $section === 'titles',
+                        'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== 'titles',
+                    ])>{{ __('messages.leadership_titles') }}</a>
+                @endif
+                @if ($canAssignLeadership)
+                    <a href="{{ route('leadership.index', 'assign') }}" wire:navigate @class([
+                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition',
+                        'bg-red-700 text-white hover:bg-red-800' => $section === 'assign',
+                        'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== 'assign',
+                    ])>{{ __('messages.assign_leadership') }}</a>
+                @endif
+                @if ($canViewAssignments)
+                    <a href="{{ route('leadership.index', 'assignments') }}" wire:navigate @class([
+                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition',
+                        'bg-red-700 text-white hover:bg-red-800' => $section === 'assignments',
+                        'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== 'assignments',
+                    ])>{{ __('messages.leadership_assignments') }}</a>
+                @endif
+            </div>
         </div>
 
         <div x-data="{ show: false, message: '' }"
@@ -68,7 +101,7 @@
             </section>
         @endif
 
-        <div class="grid gap-6 lg:grid-cols-2">
+        @if ($section === 'titles')
             <section id="leadership-title-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingTitleId ? __('messages.edit_leadership_title') : __('messages.add_leadership_title') }}
@@ -105,7 +138,9 @@
                     </div>
                 </form>
             </section>
+        @endif
 
+        @if ($section === 'assign')
             <section id="assign-leadership" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingAssignmentId ? __('messages.edit_leadership_assignment') : __('messages.assign_leadership') }}
@@ -191,9 +226,9 @@
                     </div>
                 </form>
             </section>
-        </div>
+        @endif
 
-        <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+        @if ($section === 'titles')
             <section id="leadership-titles" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.leadership_titles') }}</h2>
@@ -238,7 +273,9 @@
                     </table>
                 </div>
             </section>
+        @endif
 
+        @if ($section === 'assignments')
             <section id="leadership-assignments" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.leadership_assignments') }}</h2>
@@ -286,9 +323,13 @@
                                     </td>
                                     <td class="px-5 py-4">
                                         <div class="flex flex-wrap gap-3">
-                                            <button wire:click="editAssignment({{ $assignment->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
-                                            <button wire:click="grantAssignmentAccess({{ $assignment->id }})" type="button" class="text-sm font-medium text-amber-700 hover:text-amber-900">{{ __('messages.grant_login_access') }}</button>
-                                            <button wire:click="deleteAssignment({{ $assignment->id }})" wire:confirm="{{ __('messages.confirm_delete_leadership_assignment') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
+                                            @if ($canAssignLeadership)
+                                                <button wire:click="editAssignment({{ $assignment->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
+                                                <button wire:click="grantAssignmentAccess({{ $assignment->id }})" type="button" class="text-sm font-medium text-amber-700 hover:text-amber-900">{{ __('messages.grant_login_access') }}</button>
+                                                <button wire:click="deleteAssignment({{ $assignment->id }})" wire:confirm="{{ __('messages.confirm_delete_leadership_assignment') }}" type="button" class="text-sm font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
+                                            @else
+                                                <span class="text-gray-400">-</span>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -301,6 +342,6 @@
                     </table>
                 </div>
             </section>
-        </div>
+        @endif
     </div>
 </div>

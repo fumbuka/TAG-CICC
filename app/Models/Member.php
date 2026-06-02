@@ -66,6 +66,16 @@ class Member extends Model
         return $this->hasMany(MemberLeadershipAssignment::class);
     }
 
+    public function relationships(): HasMany
+    {
+        return $this->hasMany(MemberRelationship::class);
+    }
+
+    public function relatedTo(): HasMany
+    {
+        return $this->hasMany(MemberRelationship::class, 'related_member_id');
+    }
+
     public function pledges(): HasMany
     {
         return $this->hasMany(Pledge::class);
@@ -78,5 +88,12 @@ class Member extends Model
         }
 
         return $this->date_of_birth->age;
+    }
+
+    public function fullName(): string
+    {
+        return collect([$this->first_name, $this->middle_name, $this->last_name])
+            ->filter()
+            ->join(' ');
     }
 }

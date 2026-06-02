@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Zones;
 
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Livewire\Concerns\TracksImportResults;
 use App\Models\ImportUpload;
 use App\Models\Zone;
@@ -21,9 +22,12 @@ use Throwable;
 class Index extends Component
 {
     use TracksImportResults;
+    use ChecksSeededPermissions;
     use WithFileUploads;
 
     public ?int $editingZoneId = null;
+
+    public string $section = 'list';
 
     public string $name = '';
 
@@ -31,8 +35,21 @@ class Index extends Component
 
     public $zoneImport = null;
 
+    public function mount(?string $section = null): void
+    {
+        $this->section = $section ?: 'list';
+
+        abort_unless(match ($this->section) {
+            'create' => $this->canCreateZones(),
+            'import' => $this->canImportZones(),
+            default => $this->canViewZones(),
+        }, 403);
+    }
+
     public function save(): void
     {
+        abort_unless($this->editingZoneId ? $this->canManageZones() : $this->canCreateZones(), 403);
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('zones', 'name')->ignore($this->editingZoneId)],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -58,6 +75,8 @@ class Index extends Component
 
     public function edit(int $zoneId): void
     {
+        abort_unless($this->canManageZones(), 403);
+
         $zone = Zone::findOrFail($zoneId);
 
         $this->editingZoneId = $zone->id;
@@ -72,6 +91,8 @@ class Index extends Component
 
     public function delete(int $zoneId): void
     {
+        abort_unless($this->canManageZones(), 403);
+
         $zone = Zone::withCount('members')->findOrFail($zoneId);
 
         if ($zone->members_count > 0) {
@@ -87,6 +108,8 @@ class Index extends Component
 
     public function toggleActive(int $zoneId): void
     {
+        abort_unless($this->canManageZones(), 403);
+
         $zone = Zone::findOrFail($zoneId);
 
         $zone->update([
@@ -96,6 +119,8 @@ class Index extends Component
 
     public function import(SpreadsheetImportService $importer, ImportReportExportService $reportExporter): BinaryFileResponse
     {
+        abort_unless($this->canImportZones(), 403);
+
         $this->validate([
             'zoneImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
@@ -142,6 +167,10 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.zones.index', [
+            'section' => $this->section,
+            'canCreateZones' => $this->canCreateZones(),
+            'canImportZones' => $this->canImportZones(),
+            'canManageZones' => $this->canManageZones(),
             'zones' => Zone::query()
                 ->withCount('members')
                 ->orderByDesc('is_active')
@@ -160,5 +189,31 @@ class Index extends Component
     {
         $this->reset(['editingZoneId', 'name', 'description']);
         $this->resetErrorBag();
+    }
+
+    private function canViewZones(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || auth()->user()?->can('zones.manage')
+            || auth()->user()?->can('zones.list');
+    }
+
+    private function canCreateZones(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || auth()->user()?->can('zones.manage')
+            || auth()->user()?->can('zones.create');
+    }
+
+    private function canImportZones(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || auth()->user()?->can('zones.manage')
+            || auth()->user()?->can('zones.import');
+    }
+
+    private function canManageZones(): bool
+    {
+        return $this->permissionsAreUnseeded() || (auth()->user()?->can('zones.manage') ?? false);
     }
 }

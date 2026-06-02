@@ -2,22 +2,28 @@
 
 namespace App\Livewire\Users;
 
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Models\Member;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use ChecksSeededPermissions;
     use WithPagination;
+
+    public string $section = 'list';
 
     public ?int $editingUserId = null;
 
@@ -33,6 +39,22 @@ class Index extends Component
 
     /** @var array<int, string> */
     public array $role_names = [];
+
+    public string $selected_role_name = '';
+
+    /** @var array<int, string> */
+    public array $role_permission_names = [];
+
+    public function mount(?string $section = null): void
+    {
+        $this->section = $section ?: 'list';
+
+        abort_unless(match ($this->section) {
+            'access' => $this->canManageUserAccess(),
+            'role-matrix' => $this->canManageRoleMatrix(),
+            default => $this->canViewUsers(),
+        }, 403);
+    }
 
     public function updatedSearch(): void
     {
@@ -66,6 +88,8 @@ class Index extends Component
 
     public function save(): void
     {
+        abort_unless($this->canManageUserAccess(), 403);
+
         $validated = $this->validate([
             'member_id' => ['required', 'integer', Rule::exists('members', 'id')],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingUserId)],
@@ -122,11 +146,41 @@ class Index extends Component
         $this->dispatch($wasEditing ? 'user-updated' : 'user-created');
     }
 
+    public function updatedSelectedRoleName(): void
+    {
+        $role = $this->selected_role_name !== ''
+            ? Role::query()->where('name', $this->selected_role_name)->first()
+            : null;
+
+        $this->role_permission_names = $role?->permissions->pluck('name')->all() ?? [];
+    }
+
+    public function saveRoleMatrix(): void
+    {
+        abort_unless($this->canManageRoleMatrix(), 403);
+
+        $validated = $this->validate([
+            'selected_role_name' => ['required', 'string', Rule::exists('roles', 'name')],
+            'role_permission_names' => ['array'],
+            'role_permission_names.*' => ['string', Rule::exists('permissions', 'name')],
+        ]);
+
+        Role::query()
+            ->where('name', $validated['selected_role_name'])
+            ->firstOrFail()
+            ->syncPermissions($validated['role_permission_names']);
+
+        $this->dispatch('role-matrix-updated');
+    }
+
     public function edit(int $userId): void
     {
+        abort_unless($this->canManageUserAccess(), 403);
+
         $user = User::with(['roles', 'member'])->findOrFail($userId);
 
         $this->editingUserId = $user->id;
+        $this->section = 'access';
         $this->email = $user->email;
         $this->phone_number = $user->phone_number ?? '';
         $this->member_id = $user->member?->id;
@@ -141,6 +195,8 @@ class Index extends Component
 
     public function toggleActive(int $userId): void
     {
+        abort_unless($this->canManageUserAccess(), 403);
+
         if ($userId === Auth::id()) {
             $this->addError('user_action', __('messages.user_cannot_deactivate_self'));
 
@@ -179,8 +235,15 @@ class Index extends Component
             ->paginate(10);
 
         return view('livewire.users.index', [
+            'section' => $this->section,
+            'canManageUserAccess' => $this->canManageUserAccess(),
+            'canManageRoleMatrix' => $this->canManageRoleMatrix(),
             'users' => $users,
             'roles' => Role::query()->orderBy('name')->get(),
+            'permissionGroups' => Permission::query()
+                ->orderBy('name')
+                ->get()
+                ->groupBy(fn (Permission $permission): string => Str::of($permission->name)->before('.')->headline()->toString()),
             'members' => Member::query()
                 ->with('user')
                 ->orderBy('first_name')
@@ -201,5 +264,24 @@ class Index extends Component
         ]);
 
         $this->resetErrorBag();
+    }
+
+    private function canViewUsers(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('users.manage')
+            || Auth::user()?->can('users.list');
+    }
+
+    private function canManageUserAccess(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('users.manage')
+            || Auth::user()?->can('users.access');
+    }
+
+    private function canManageRoleMatrix(): bool
+    {
+        return $this->permissionsAreUnseeded() || (Auth::user()?->can('users.role-matrix') ?? false);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Departments;
 
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Livewire\Concerns\TracksImportResults;
 use App\Models\Department;
 use App\Models\ImportUpload;
@@ -21,9 +22,12 @@ use Throwable;
 class Index extends Component
 {
     use TracksImportResults;
+    use ChecksSeededPermissions;
     use WithFileUploads;
 
     public ?int $editingDepartmentId = null;
+
+    public string $section = 'list';
 
     public string $name = '';
 
@@ -39,8 +43,21 @@ class Index extends Component
 
     public $departmentImport = null;
 
+    public function mount(?string $section = null): void
+    {
+        $this->section = $section ?: 'list';
+
+        abort_unless(match ($this->section) {
+            'create' => $this->canCreateDepartments(),
+            'import' => $this->canImportDepartments(),
+            default => $this->canViewDepartments(),
+        }, 403);
+    }
+
     public function save(): void
     {
+        abort_unless($this->editingDepartmentId ? $this->canManageDepartments() : $this->canCreateDepartments(), 403);
+
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($this->editingDepartmentId)],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -74,6 +91,8 @@ class Index extends Component
 
     public function edit(int $departmentId): void
     {
+        abort_unless($this->canManageDepartments(), 403);
+
         $department = Department::findOrFail($departmentId);
 
         $this->editingDepartmentId = $department->id;
@@ -92,6 +111,8 @@ class Index extends Component
 
     public function delete(int $departmentId): void
     {
+        abort_unless($this->canManageDepartments(), 403);
+
         $department = Department::withCount('members')->findOrFail($departmentId);
 
         if ($department->members_count > 0) {
@@ -107,6 +128,8 @@ class Index extends Component
 
     public function toggleActive(int $departmentId): void
     {
+        abort_unless($this->canManageDepartments(), 403);
+
         $department = Department::findOrFail($departmentId);
 
         $department->update([
@@ -116,6 +139,8 @@ class Index extends Component
 
     public function import(SpreadsheetImportService $importer, ImportReportExportService $reportExporter): BinaryFileResponse
     {
+        abort_unless($this->canImportDepartments(), 403);
+
         $this->validate([
             'departmentImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
@@ -169,6 +194,10 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.departments.index', [
+            'section' => $this->section,
+            'canCreateDepartments' => $this->canCreateDepartments(),
+            'canImportDepartments' => $this->canImportDepartments(),
+            'canManageDepartments' => $this->canManageDepartments(),
             'departments' => Department::query()
                 ->withCount('members')
                 ->orderByDesc('is_active')
@@ -211,5 +240,31 @@ class Index extends Component
         $value = trim((string) $value);
 
         return $value === '' ? null : (int) $value;
+    }
+
+    private function canViewDepartments(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || auth()->user()?->can('departments.manage')
+            || auth()->user()?->can('departments.list');
+    }
+
+    private function canCreateDepartments(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || auth()->user()?->can('departments.manage')
+            || auth()->user()?->can('departments.create');
+    }
+
+    private function canImportDepartments(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || auth()->user()?->can('departments.manage')
+            || auth()->user()?->can('departments.import');
+    }
+
+    private function canManageDepartments(): bool
+    {
+        return $this->permissionsAreUnseeded() || (auth()->user()?->can('departments.manage') ?? false);
     }
 }

@@ -3,9 +3,11 @@
 namespace App\Livewire\Members;
 
 use App\Livewire\Concerns\TracksImportResults;
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Models\Department;
 use App\Models\ImportUpload;
 use App\Models\Member;
+use App\Models\MemberRelationship;
 use App\Models\Zone;
 use App\Services\ImportReportExportService;
 use App\Services\MemberDepartmentAssignmentService;
@@ -30,10 +32,13 @@ use Throwable;
 class Index extends Component
 {
     use TracksImportResults;
+    use ChecksSeededPermissions;
     use WithFileUploads;
     use WithPagination;
 
     public ?int $editingMemberId = null;
+
+    public string $section = 'list';
 
     public string $search = '';
 
@@ -60,6 +65,33 @@ class Index extends Component
 
     public $memberImport = null;
 
+    public ?int $editingRelationshipId = null;
+
+    public ?int $relationship_member_id = null;
+
+    public ?int $related_member_id = null;
+
+    public string $relationship_type = 'spouse';
+
+    public string $relationship_notes = '';
+
+    public function mount(?string $section = null): void
+    {
+        $this->section = $section ?: 'list';
+
+        if ($this->section === 'create') {
+            abort_unless($this->canSaveMembers(), 403);
+        }
+
+        if ($this->section === 'import') {
+            abort_unless($this->canImportMembers(), 403);
+        }
+
+        if ($this->section === 'relationships') {
+            abort_unless($this->canManageRelationships(), 403);
+        }
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -67,19 +99,29 @@ class Index extends Component
 
     public function save(MemberDepartmentAssignmentService $assignmentService): void
     {
+        abort_unless($this->canSaveMembers(), 403);
+
         $validated = $this->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', Rule::in(['male', 'female'])],
             'date_of_birth' => ['required', 'date', 'before_or_equal:today'],
-            'phone_number' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:20', Rule::unique('members', 'phone_number')->ignore($this->editingMemberId)],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('members', 'email')->ignore($this->editingMemberId)],
             'residential_area' => ['nullable', 'string', 'max:255'],
             'zone_id' => ['nullable', 'integer', Rule::exists('zones', 'id')],
             'department_ids' => ['array'],
             'department_ids.*' => ['integer', Rule::exists('departments', 'id')],
         ]);
+
+        if ($duplicate = $this->findDuplicateMember($validated, $this->editingMemberId)) {
+            $this->addError('first_name', __('messages.duplicate_member_found', [
+                'member' => $duplicate->fullName(),
+            ]));
+
+            return;
+        }
 
         $wasEditing = $this->editingMemberId !== null;
 
@@ -130,9 +172,12 @@ class Index extends Component
 
     public function edit(int $memberId): void
     {
+        abort_unless($this->canUpdateMembers(), 403);
+
         $member = Member::with('departments')->findOrFail($memberId);
 
         $this->editingMemberId = $member->id;
+        $this->section = 'create';
         $this->first_name = $member->first_name;
         $this->middle_name = $member->middle_name ?? '';
         $this->last_name = $member->last_name;
@@ -152,6 +197,8 @@ class Index extends Component
 
     public function delete(int $memberId): void
     {
+        abort_unless($this->canUpdateMembers(), 403);
+
         Member::findOrFail($memberId)->delete();
 
         if ($this->editingMemberId === $memberId) {
@@ -166,6 +213,8 @@ class Index extends Component
         MemberDepartmentAssignmentService $assignmentService,
         ImportReportExportService $reportExporter,
     ): BinaryFileResponse {
+        abort_unless($this->canImportMembers(), 403);
+
         $this->validate([
             'memberImport' => ['required', 'file', 'mimes:csv,txt,xlsx,ods', 'max:5120'],
         ]);
@@ -201,6 +250,14 @@ class Index extends Component
                     'phone_number' => ['nullable', 'string', 'max:20'],
                     'email' => ['nullable', 'email', 'max:255'],
                 ])->validate();
+
+                if ($duplicate = $this->findDuplicateMember($attributes)) {
+                    $this->recordRejectedRow($rowNumber, $record, [__('messages.duplicate_member_found', [
+                        'member' => $duplicate->fullName(),
+                    ])], $row);
+
+                    continue;
+                }
 
                 DB::transaction(function () use ($assignmentService, $attributes, $row): void {
                     $zoneName = trim((string) ($row['zone'] ?? $row['kanda'] ?? ''));
@@ -241,6 +298,79 @@ class Index extends Component
         return $this->downloadImportReport($reportExporter);
     }
 
+    public function saveRelationship(): void
+    {
+        abort_unless($this->canManageRelationships(), 403);
+
+        $validated = $this->validate([
+            'relationship_member_id' => ['required', 'integer', Rule::exists('members', 'id')],
+            'related_member_id' => [
+                'required',
+                'integer',
+                Rule::exists('members', 'id'),
+                'different:relationship_member_id',
+                Rule::unique('member_relationships', 'related_member_id')
+                    ->ignore($this->editingRelationshipId)
+                    ->where(fn ($query) => $query
+                        ->where('member_id', $this->relationship_member_id)
+                        ->where('relationship_type', $this->relationship_type)),
+            ],
+            'relationship_type' => ['required', Rule::in(array_keys($this->relationshipTypes()))],
+            'relationship_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $attributes = [
+            'member_id' => $validated['relationship_member_id'],
+            'related_member_id' => $validated['related_member_id'],
+            'relationship_type' => $validated['relationship_type'],
+            'notes' => $validated['relationship_notes'] ?: null,
+        ];
+
+        if ($this->editingRelationshipId) {
+            MemberRelationship::findOrFail($this->editingRelationshipId)->update($attributes);
+        } else {
+            MemberRelationship::create($attributes + [
+                'created_by_user_id' => Auth::id(),
+            ]);
+        }
+
+        $this->resetRelationshipForm();
+
+        $this->dispatch('relationship-saved');
+    }
+
+    public function editRelationship(int $relationshipId): void
+    {
+        abort_unless($this->canManageRelationships(), 403);
+
+        $relationship = MemberRelationship::findOrFail($relationshipId);
+
+        $this->editingRelationshipId = $relationship->id;
+        $this->section = 'relationships';
+        $this->relationship_member_id = $relationship->member_id;
+        $this->related_member_id = $relationship->related_member_id;
+        $this->relationship_type = $relationship->relationship_type;
+        $this->relationship_notes = $relationship->notes ?? '';
+    }
+
+    public function cancelRelationshipEdit(): void
+    {
+        $this->resetRelationshipForm();
+    }
+
+    public function deleteRelationship(int $relationshipId): void
+    {
+        abort_unless($this->canManageRelationships(), 403);
+
+        MemberRelationship::findOrFail($relationshipId)->delete();
+
+        if ($this->editingRelationshipId === $relationshipId) {
+            $this->resetRelationshipForm();
+        }
+
+        $this->dispatch('relationship-deleted');
+    }
+
     public function render(): View
     {
         $scope = UserDataScope::for(Auth::user());
@@ -261,7 +391,21 @@ class Index extends Component
             ->paginate(10);
 
         return view('livewire.members.index', [
+            'section' => $this->section,
+            'canCreateMembers' => $this->canCreateMembers(),
+            'canUpdateMembers' => $this->canUpdateMembers(),
+            'canImportMembers' => $this->canImportMembers(),
+            'canManageRelationships' => $this->canManageRelationships(),
             'members' => $members,
+            'relationshipMembers' => $scope->applyMemberScope(Member::query())
+                ->orderBy('first_name')
+                ->orderBy('last_name')
+                ->get(),
+            'relationships' => MemberRelationship::query()
+                ->with(['member', 'relatedMember'])
+                ->latest()
+                ->get(),
+            'relationshipTypes' => $this->relationshipTypes(),
             'departments' => $scope->applyDepartmentScope(Department::query()->where('is_active', true))->orderBy('name')->get(),
             'zones' => $scope->applyZoneScope(Zone::query()->where('is_active', true))->orderBy('name')->get(),
             'importUploads' => ImportUpload::query()
@@ -290,6 +434,61 @@ class Index extends Component
         ]);
 
         $this->resetErrorBag();
+    }
+
+    private function resetRelationshipForm(): void
+    {
+        $this->reset([
+            'editingRelationshipId',
+            'relationship_member_id',
+            'related_member_id',
+            'relationship_notes',
+        ]);
+
+        $this->relationship_type = 'spouse';
+        $this->resetErrorBag();
+    }
+
+    private function canManageRelationships(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('members.relationships')
+            || Auth::user()?->can('members.update');
+    }
+
+    private function canCreateMembers(): bool
+    {
+        return $this->permissionsAreUnseeded() || (Auth::user()?->can('members.create') ?? false);
+    }
+
+    private function canUpdateMembers(): bool
+    {
+        return $this->permissionsAreUnseeded() || (Auth::user()?->can('members.update') ?? false);
+    }
+
+    private function canSaveMembers(): bool
+    {
+        return $this->canCreateMembers() || $this->canUpdateMembers();
+    }
+
+    private function canImportMembers(): bool
+    {
+        return $this->permissionsAreUnseeded() || (Auth::user()?->can('members.import') ?? false);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function relationshipTypes(): array
+    {
+        return [
+            'spouse' => __('messages.spouse'),
+            'parent' => __('messages.parent'),
+            'child' => __('messages.child'),
+            'guardian' => __('messages.guardian'),
+            'sibling' => __('messages.sibling'),
+            'relative' => __('messages.relative'),
+        ];
     }
 
     private function normalizeGender(mixed $gender): string
@@ -328,6 +527,43 @@ class Index extends Component
         $phone = trim((string) ($row['phone_number'] ?? $row['phone'] ?? $row['simu'] ?? ''));
 
         return trim($name.($phone !== '' ? " ({$phone})" : ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function findDuplicateMember(array $attributes, ?int $ignoreMemberId = null): ?Member
+    {
+        $phone = trim((string) ($attributes['phone_number'] ?? ''));
+        $email = trim((string) ($attributes['email'] ?? ''));
+
+        $query = Member::query()
+            ->when($ignoreMemberId, fn ($query) => $query->whereKeyNot($ignoreMemberId));
+
+        if ($phone !== '' || $email !== '') {
+            return $query
+                ->where(function ($query) use ($phone, $email): void {
+                    $query
+                        ->when($phone !== '', fn ($query) => $query->where('phone_number', $phone))
+                        ->when($email !== '', function ($query) use ($phone, $email): void {
+                            $method = $phone !== '' ? 'orWhere' : 'where';
+                            $query->{$method}('email', $email);
+                        });
+                })
+                ->first();
+        }
+
+        $dateOfBirth = trim((string) ($attributes['date_of_birth'] ?? ''));
+
+        if ($dateOfBirth === '') {
+            return null;
+        }
+
+        return $query
+            ->where('first_name', $attributes['first_name'] ?? '')
+            ->where('last_name', $attributes['last_name'] ?? '')
+            ->whereDate('date_of_birth', $dateOfBirth)
+            ->first();
     }
 
     private function findOrCreateZone(string $zoneName): Zone

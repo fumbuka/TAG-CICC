@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Calendar;
 
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Models\CalendarEvent;
 use App\Models\Department;
 use App\Models\Member;
@@ -16,6 +17,10 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use ChecksSeededPermissions;
+
+    public string $section = 'events';
+
     public ?int $editingEventId = null;
 
     public string $title = '';
@@ -55,8 +60,16 @@ class Index extends Component
      */
     public array $submissionDepartmentIds = [];
 
-    public function mount(): void
+    public function mount(?string $section = null): void
     {
+        $this->section = $section ?: 'events';
+
+        abort_unless(match ($this->section) {
+            'create' => $this->canCreateCalendarEvents(),
+            'weekly-duties' => $this->canManageWeeklyDuties(),
+            default => $this->canViewCalendarEvents(),
+        }, 403);
+
         $this->submissionDepartmentIds = $this->departmentIdsAllowedForSubmission();
 
         if (! $this->canManageCalendar() && count($this->submissionDepartmentIds) === 1) {
@@ -66,7 +79,7 @@ class Index extends Component
 
     public function saveEvent(): void
     {
-        abort_unless($this->canUseCalendar(), 403);
+        abort_unless($this->canCreateCalendarEvents(), 403);
 
         $departmentRule = $this->canManageCalendar()
             ? ['nullable', 'integer', Rule::exists('departments', 'id')]
@@ -133,6 +146,7 @@ class Index extends Component
         abort_unless($this->canManageEvent($event), 403);
 
         $this->editingEventId = $event->id;
+        $this->section = 'create';
         $this->title = $event->title;
         $this->event_date = $event->event_date?->toDateString() ?? '';
         $this->starts_at = $event->starts_at ? substr((string) $event->starts_at, 0, 5) : '';
@@ -183,7 +197,7 @@ class Index extends Component
 
     public function saveDuty(): void
     {
-        abort_unless($this->canManageCalendar(), 403);
+        abort_unless($this->canManageWeeklyDuties(), 403);
 
         $validated = $this->validate([
             'week_start' => ['required', 'date'],
@@ -216,11 +230,12 @@ class Index extends Component
 
     public function editDuty(int $dutyId): void
     {
-        abort_unless($this->canManageCalendar(), 403);
+        abort_unless($this->canManageWeeklyDuties(), 403);
 
         $duty = WeeklyDuty::findOrFail($dutyId);
 
         $this->editingDutyId = $duty->id;
+        $this->section = 'weekly-duties';
         $this->week_start = $duty->week_start?->toDateString() ?? '';
         $this->week_end = $duty->week_end?->toDateString() ?? '';
         $this->elder_member_id = $duty->elder_member_id;
@@ -236,7 +251,7 @@ class Index extends Component
 
     public function deleteDuty(int $dutyId): void
     {
-        abort_unless($this->canManageCalendar(), 403);
+        abort_unless($this->canManageWeeklyDuties(), 403);
 
         WeeklyDuty::findOrFail($dutyId)->delete();
 
@@ -245,7 +260,7 @@ class Index extends Component
 
     public function toggleDutyActive(int $dutyId): void
     {
-        abort_unless($this->canManageCalendar(), 403);
+        abort_unless($this->canManageWeeklyDuties(), 403);
 
         $duty = WeeklyDuty::findOrFail($dutyId);
 
@@ -263,6 +278,7 @@ class Index extends Component
             ->get();
 
         return view('livewire.calendar.index', [
+            'section' => $this->section,
             'events' => CalendarEvent::query()
                 ->with(['department', 'zone'])
                 ->orderByDesc('event_date')
@@ -276,6 +292,8 @@ class Index extends Component
             'departments' => $departments,
             'zones' => Zone::query()->where('is_active', true)->orderBy('name')->get(),
             'canManageCalendar' => $this->canManageCalendar(),
+            'canCreateCalendarEvents' => $this->canCreateCalendarEvents(),
+            'canManageWeeklyDuties' => $this->canManageWeeklyDuties(),
             'submissionDepartmentIds' => $this->submissionDepartmentIds,
         ]);
     }
@@ -316,12 +334,31 @@ class Index extends Component
 
     private function canUseCalendar(): bool
     {
-        return $this->canManageCalendar() || Auth::user()?->can('calendar.submit');
+        return $this->canCreateCalendarEvents();
     }
 
     private function canManageCalendar(): bool
     {
-        return Auth::user()?->can('calendar.manage') ?? false;
+        return $this->permissionsAreUnseeded() || (Auth::user()?->can('calendar.manage') ?? false);
+    }
+
+    private function canViewCalendarEvents(): bool
+    {
+        return $this->canManageCalendar()
+            || Auth::user()?->can('calendar.submit')
+            || Auth::user()?->can('calendar.events');
+    }
+
+    private function canCreateCalendarEvents(): bool
+    {
+        return $this->canManageCalendar()
+            || Auth::user()?->can('calendar.submit')
+            || Auth::user()?->can('calendar.create');
+    }
+
+    private function canManageWeeklyDuties(): bool
+    {
+        return $this->canManageCalendar() || Auth::user()?->can('calendar.weekly-duties');
     }
 
     private function canManageEvent(CalendarEvent $event): bool

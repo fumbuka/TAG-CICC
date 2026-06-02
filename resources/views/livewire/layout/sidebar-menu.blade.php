@@ -39,6 +39,7 @@
                             @foreach ($item['children'] as $child)
                                 <a
                                     href="{{ $child['href'] }}"
+                                    @if (! str_contains($child['href'], '#')) wire:navigate @endif
                                     @if ($mobile) @click="mobileOpen = false" @endif
                                     class="block rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-red-50 hover:text-red-800"
                                 >

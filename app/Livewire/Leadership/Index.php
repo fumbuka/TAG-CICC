@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Leadership;
 
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Models\Department;
 use App\Models\LeadershipTitle;
 use App\Models\Member;
@@ -20,6 +21,10 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    use ChecksSeededPermissions;
+
+    public string $section = 'assignments';
+
     public ?int $editingTitleId = null;
 
     public string $title_name = '';
@@ -49,8 +54,21 @@ class Index extends Component
     /** @var array<string, mixed>|null */
     public ?array $accessCredentials = null;
 
+    public function mount(?string $section = null): void
+    {
+        $this->section = $section ?: 'assignments';
+
+        abort_unless(match ($this->section) {
+            'titles' => $this->canManageTitles(),
+            'assign' => $this->canAssignLeadership(),
+            default => $this->canViewAssignments(),
+        }, 403);
+    }
+
     public function saveTitle(): void
     {
+        abort_unless($this->canManageTitles(), 403);
+
         $validated = $this->validate([
             'title_name' => ['required', 'string', 'max:255', Rule::unique('leadership_titles', 'name')->ignore($this->editingTitleId)],
             'title_scope' => ['required', Rule::in(['church', 'department', 'zone'])],
@@ -78,9 +96,12 @@ class Index extends Component
 
     public function editTitle(int $titleId): void
     {
+        abort_unless($this->canManageTitles(), 403);
+
         $title = LeadershipTitle::findOrFail($titleId);
 
         $this->editingTitleId = $title->id;
+        $this->section = 'titles';
         $this->title_name = $title->name;
         $this->title_scope = $title->scope;
         $this->title_description = $title->description ?? '';
@@ -93,6 +114,8 @@ class Index extends Component
 
     public function deleteTitle(int $titleId): void
     {
+        abort_unless($this->canManageTitles(), 403);
+
         $title = LeadershipTitle::withCount('assignments')->findOrFail($titleId);
 
         if ($title->assignments_count > 0) {
@@ -108,6 +131,8 @@ class Index extends Component
 
     public function toggleTitleActive(int $titleId): void
     {
+        abort_unless($this->canManageTitles(), 403);
+
         $title = LeadershipTitle::findOrFail($titleId);
 
         $title->update([
@@ -117,6 +142,8 @@ class Index extends Component
 
     public function saveAssignment(LeadershipSystemAccess $systemAccess): void
     {
+        abort_unless($this->canAssignLeadership(), 403);
+
         $validated = $this->validate([
             'member_id' => ['required', 'integer', Rule::exists('members', 'id')],
             'leadership_title_id' => ['required', 'integer', Rule::exists('leadership_titles', 'id')],
@@ -181,6 +208,8 @@ class Index extends Component
 
     public function grantAssignmentAccess(int $assignmentId, LeadershipSystemAccess $systemAccess): void
     {
+        abort_unless($this->canAssignLeadership(), 403);
+
         $assignment = MemberLeadershipAssignment::with(['member', 'leadershipTitle'])->findOrFail($assignmentId);
 
         if (! $assignment->is_active) {
@@ -198,9 +227,12 @@ class Index extends Component
 
     public function editAssignment(int $assignmentId): void
     {
+        abort_unless($this->canAssignLeadership(), 403);
+
         $assignment = MemberLeadershipAssignment::findOrFail($assignmentId);
 
         $this->editingAssignmentId = $assignment->id;
+        $this->section = 'assign';
         $this->member_id = $assignment->member_id;
         $this->leadership_title_id = $assignment->leadership_title_id;
         $this->department_id = $assignment->department_id;
@@ -218,6 +250,8 @@ class Index extends Component
 
     public function deleteAssignment(int $assignmentId): void
     {
+        abort_unless($this->canAssignLeadership(), 403);
+
         MemberLeadershipAssignment::findOrFail($assignmentId)->delete();
 
         $this->dispatch('assignment-deleted');
@@ -226,6 +260,10 @@ class Index extends Component
     public function render(): View
     {
         return view('livewire.leadership.index', [
+            'section' => $this->section,
+            'canManageTitles' => $this->canManageTitles(),
+            'canAssignLeadership' => $this->canAssignLeadership(),
+            'canViewAssignments' => $this->canViewAssignments(),
             'titles' => LeadershipTitle::query()
                 ->withCount('assignments')
                 ->orderByDesc('is_active')
@@ -279,5 +317,26 @@ class Index extends Component
             'role_name' => $accessCredentials['role_name'],
             'created' => $accessCredentials['created'],
         ];
+    }
+
+    private function canManageTitles(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('leadership.manage')
+            || Auth::user()?->can('leadership.titles');
+    }
+
+    private function canAssignLeadership(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('leadership.manage')
+            || Auth::user()?->can('leadership.assign');
+    }
+
+    private function canViewAssignments(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('leadership.manage')
+            || Auth::user()?->can('leadership.assignments');
     }
 }

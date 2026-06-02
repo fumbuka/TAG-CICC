@@ -1,9 +1,36 @@
 <div class="py-8">
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <div>
-            <p class="text-sm font-medium text-emerald-700">{{ __('messages.calendar') }}</p>
-            <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.calendar') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('messages.calendar_help') }}</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-sm font-medium text-emerald-700">{{ __('messages.calendar') }}</p>
+                <h1 class="text-2xl font-semibold text-gray-950">
+                    @if ($section === 'create')
+                        {{ __('messages.add_event') }}
+                    @elseif ($section === 'weekly-duties')
+                        {{ __('messages.weekly_duties') }}
+                    @else
+                        {{ __('messages.calendar_events') }}
+                    @endif
+                </h1>
+                <p class="mt-1 text-sm text-gray-600">{{ __('messages.calendar_help') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                @if ($section !== 'events')
+                    <a href="{{ route('calendar.index', 'events') }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-800">
+                        {{ __('messages.calendar_events') }}
+                    </a>
+                @endif
+                @if ($canCreateCalendarEvents && $section !== 'create')
+                    <a href="{{ route('calendar.index', 'create') }}" wire:navigate class="inline-flex items-center justify-center rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-800">
+                        {{ __('messages.add_event') }}
+                    </a>
+                @endif
+                @if ($canManageWeeklyDuties && $section !== 'weekly-duties')
+                    <a href="{{ route('calendar.index', 'weekly-duties') }}" wire:navigate class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-800">
+                        {{ __('messages.weekly_duties') }}
+                    </a>
+                @endif
+            </div>
         </div>
 
         <div x-data="{ show: false, message: '' }"
@@ -18,16 +45,13 @@
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
             x-text="message"></div>
 
-        @if (! $canManageCalendar && $departments->isEmpty())
+        @if ($section === 'create' && ! $canManageCalendar && $departments->isEmpty())
             <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
                 {{ __('messages.no_department_calendar_permission') }}
             </div>
         @endif
 
-        <div @class([
-            'grid gap-6',
-            'lg:grid-cols-2' => $canManageCalendar,
-        ])>
+        @if ($section === 'create')
             <section id="calendar-event-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingEventId ? __('messages.edit_event') : __('messages.add_event') }}
@@ -124,8 +148,9 @@
                     </div>
                 </form>
             </section>
+        @endif
 
-            @if ($canManageCalendar)
+            @if ($section === 'weekly-duties' && $canManageWeeklyDuties)
                 <section id="weekly-duty-form" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                     <h2 class="text-lg font-semibold text-gray-950">
                         {{ $editingDutyId ? __('messages.edit_weekly_duty') : __('messages.add_weekly_duty') }}
@@ -190,12 +215,8 @@
                     </form>
                 </section>
             @endif
-        </div>
 
-        <div @class([
-            'grid gap-6',
-            'lg:grid-cols-[1.1fr_0.9fr]' => $canManageCalendar,
-        ])>
+        @if ($section === 'events')
             <section id="calendar-events-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.calendar_events') }}</h2>
@@ -270,8 +291,9 @@
                     </table>
                 </div>
             </section>
+        @endif
 
-            @if ($canManageCalendar)
+            @if ($section === 'weekly-duties' && $canManageWeeklyDuties)
                 <section id="weekly-duties" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.weekly_duties') }}</h2>
@@ -326,6 +348,5 @@
                 </div>
                 </section>
             @endif
-        </div>
     </div>
 </div>

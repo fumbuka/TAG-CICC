@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Services;
 
+use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Models\Department;
 use App\Models\Service;
 use App\Models\ServiceRoutine;
@@ -20,8 +21,11 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+    use ChecksSeededPermissions;
 
     public ?int $editingServiceId = null;
+
+    public string $section = 'list';
 
     public string $search = '';
 
@@ -48,6 +52,16 @@ class Index extends Component
     public ?int $attendance_count = null;
 
     public string $notes = '';
+
+    public function mount(?string $section = null): void
+    {
+        $this->section = $section ?: 'list';
+
+        abort_unless(match ($this->section) {
+            'create' => $this->canRecordServices(),
+            default => $this->canViewServices(),
+        }, 403);
+    }
 
     public function updatedSearch(): void
     {
@@ -78,6 +92,8 @@ class Index extends Component
 
     public function save(): void
     {
+        abort_unless($this->canRecordServices(), 403);
+
         $validated = $this->validate([
             'service_routine_id' => ['required', 'integer', Rule::exists('service_routines', 'id')],
             'department_id' => ['nullable', 'integer', Rule::exists('departments', 'id')],
@@ -123,9 +139,12 @@ class Index extends Component
 
     public function edit(int $serviceId): void
     {
+        abort_unless($this->canRecordServices(), 403);
+
         $service = Service::findOrFail($serviceId);
 
         $this->editingServiceId = $service->id;
+        $this->section = 'create';
         $this->service_routine_id = $service->service_routine_id;
         $this->service_type_id = $service->service_type_id;
         $this->department_id = $service->department_id;
@@ -147,6 +166,8 @@ class Index extends Component
 
     public function delete(int $serviceId): void
     {
+        abort_unless($this->canRecordServices(), 403);
+
         $service = Service::query()
             ->withCount('financialTransactions')
             ->findOrFail($serviceId);
@@ -187,6 +208,8 @@ class Index extends Component
             ->paginate(10);
 
         return view('livewire.services.index', [
+            'section' => $this->section,
+            'canRecordServices' => $this->canRecordServices(),
             'services' => $services,
             'serviceRoutines' => $scope
                 ->applyServiceScope(
@@ -243,5 +266,19 @@ class Index extends Component
         $daysToAdd = ($routine->day_of_week - $today->dayOfWeek + 7) % 7;
 
         return $today->copy()->addDays($daysToAdd)->toDateString();
+    }
+
+    private function canViewServices(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('services.manage')
+            || Auth::user()?->can('services.list');
+    }
+
+    private function canRecordServices(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || Auth::user()?->can('services.manage')
+            || Auth::user()?->can('services.record');
     }
 }

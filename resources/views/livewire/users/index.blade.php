@@ -1,14 +1,46 @@
 <div class="py-8">
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <div>
-            <p class="text-sm font-medium text-emerald-700">{{ __('messages.users') }}</p>
-            <h1 class="text-2xl font-semibold text-gray-950">{{ __('messages.users') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('messages.users_help') }}</p>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-sm font-medium text-emerald-700">{{ __('messages.users') }}</p>
+                <h1 class="text-2xl font-semibold text-gray-950">
+                    @if ($section === 'access')
+                        {{ __('messages.add_user') }}
+                    @elseif ($section === 'role-matrix')
+                        {{ __('messages.role_matrix') }}
+                    @else
+                        {{ __('messages.users_list') }}
+                    @endif
+                </h1>
+                <p class="mt-1 text-sm text-gray-600">{{ $section === 'role-matrix' ? __('messages.role_matrix_help') : __('messages.users_help') }}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('users.index') }}" wire:navigate @class([
+                    'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition',
+                    'bg-red-700 text-white hover:bg-red-800' => $section === 'list',
+                    'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== 'list',
+                ])>{{ __('messages.users_list') }}</a>
+                @if ($canManageUserAccess)
+                    <a href="{{ route('users.index', 'access') }}" wire:navigate @class([
+                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition',
+                        'bg-red-700 text-white hover:bg-red-800' => $section === 'access',
+                        'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== 'access',
+                    ])>{{ __('messages.add_user') }}</a>
+                @endif
+                @if ($canManageRoleMatrix)
+                    <a href="{{ route('users.index', 'role-matrix') }}" wire:navigate @class([
+                        'inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition',
+                        'bg-red-700 text-white hover:bg-red-800' => $section === 'role-matrix',
+                        'border border-gray-300 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50 hover:text-red-800' => $section !== 'role-matrix',
+                    ])>{{ __('messages.role_matrix') }}</a>
+                @endif
+            </div>
         </div>
 
         <div x-data="{ show: false, message: '' }"
             x-on:user-created.window="message = '{{ __('messages.user_created') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:user-updated.window="message = '{{ __('messages.user_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:role-matrix-updated.window="message = '{{ __('messages.role_matrix_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -18,7 +50,7 @@
             <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{{ $message }}</div>
         @enderror
 
-        <div class="grid gap-6 lg:grid-cols-[0.85fr_1.4fr]">
+        @if ($section === 'access')
             <section id="grant-access" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
                     {{ $editingUserId ? __('messages.edit_user') : __('messages.add_user') }}
@@ -82,7 +114,9 @@
                     </div>
                 </form>
             </section>
+        @endif
 
+        @if ($section === 'list')
             <section id="users-list" class="scroll-mt-24 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <div class="border-b border-gray-200 p-5">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -127,12 +161,16 @@
                                     </td>
                                     <td class="px-5 py-4">
                                         <div class="flex flex-wrap gap-3">
-                                            <button wire:click="edit({{ $user->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
-                                                {{ __('messages.edit') }}
-                                            </button>
-                                            <button wire:click="toggleActive({{ $user->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
-                                                {{ $user->is_active ? __('messages.deactivate') : __('messages.activate') }}
-                                            </button>
+                                            @if ($canManageUserAccess)
+                                                <button wire:click="edit({{ $user->id }})" type="button" class="text-sm font-medium text-emerald-700 hover:text-emerald-900">
+                                                    {{ __('messages.edit') }}
+                                                </button>
+                                                <button wire:click="toggleActive({{ $user->id }})" type="button" class="text-sm font-medium text-gray-700 hover:text-gray-950">
+                                                    {{ $user->is_active ? __('messages.deactivate') : __('messages.activate') }}
+                                                </button>
+                                            @else
+                                                <span class="text-xs text-gray-400">-</span>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -149,6 +187,43 @@
                     {{ $users->links() }}
                 </div>
             </section>
-        </div>
+        @endif
+
+        @if ($section === 'role-matrix')
+            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <form wire:submit="saveRoleMatrix" class="space-y-5">
+                    <div class="max-w-xl">
+                        <x-input-label for="selected_role_name" :value="__('messages.select_role')" />
+                        <select wire:model.live="selected_role_name" id="selected_role_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <option value="">{{ __('messages.select_role') }}</option>
+                            @foreach ($roles as $role)
+                                <option value="{{ $role->name }}">{{ $role->name }}</option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('selected_role_name')" class="mt-2" />
+                    </div>
+
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        @foreach ($permissionGroups as $groupName => $permissions)
+                            <div class="rounded-lg border border-gray-200 p-4">
+                                <h3 class="font-semibold text-gray-950">{{ $groupName }}</h3>
+                                <div class="mt-3 grid gap-2">
+                                    @foreach ($permissions as $permission)
+                                        <label class="flex items-center gap-2 text-sm text-gray-700">
+                                            <input wire:model="role_permission_names" type="checkbox" value="{{ $permission->name }}" class="rounded border-gray-300 text-emerald-700 focus:ring-emerald-600">
+                                            <span>{{ $permission->name }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="flex justify-end">
+                        <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                    </div>
+                </form>
+            </section>
+        @endif
     </div>
 </div>
