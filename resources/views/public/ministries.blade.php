@@ -7,6 +7,17 @@
         </div>
     </section>
 
+    <section class="bg-white py-12">
+        <div class="mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-[0.95fr_1.05fr] lg:px-8">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-red-700">{{ __('messages.women_department') }}</p>
+                <h2 class="mt-3 text-3xl font-extrabold text-slate-950">{{ __('messages.ministries_in_action') }}</h2>
+                <p class="mt-4 text-sm leading-7 text-slate-600">{{ __('messages.ministries_in_action_body') }}</p>
+            </div>
+            <img src="{{ asset('images/church-life/women-ministry.jpeg') }}" alt="{{ __('messages.women_ministry_photo') }}" class="h-80 w-full rounded-lg object-cover shadow-sm">
+        </div>
+    </section>
+
     <section class="bg-slate-50 py-12">
         <div class="mx-auto grid max-w-7xl gap-4 px-4 sm:px-6 md:grid-cols-2 lg:grid-cols-3 lg:px-8">
             @foreach ([

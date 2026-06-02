@@ -9,10 +9,15 @@
 
     <section class="bg-white py-12">
         <div class="mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-            <div class="rounded-lg border border-slate-200 bg-slate-50 p-6">
-                <img src="{{ asset('images/tag-cicc-logo.png') }}" alt="TAG-CICC" class="mx-auto h-44 w-44 object-contain">
-                <h2 class="mt-6 text-2xl font-extrabold text-slate-950">{{ __('messages.local_church_name') }}</h2>
+            <div class="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+                <img src="{{ asset('images/church-life/church-family-dedication.jpeg') }}" alt="{{ __('messages.church_family_photo') }}" class="h-80 w-full object-cover">
+                <div class="p-6">
+                    <div class="flex items-center gap-4">
+                        <img src="{{ asset('images/tag-cicc-icon.png') }}" alt="TAG-CICC" class="h-14 w-14 rounded-full bg-white object-contain p-1 shadow-sm">
+                        <h2 class="text-2xl font-extrabold text-slate-950">{{ __('messages.local_church_name') }}</h2>
+                    </div>
                 <p class="mt-3 text-sm leading-7 text-slate-600">{{ __('messages.public_about_details') }}</p>
+                </div>
             </div>
 
             <div class="grid gap-4">

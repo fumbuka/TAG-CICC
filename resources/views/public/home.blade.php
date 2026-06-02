@@ -6,10 +6,11 @@
     @endphp
 
     <section class="relative overflow-hidden bg-slate-950 text-white">
-        <img src="{{ asset('images/tag-cicc-logo.png') }}" alt="" class="absolute right-[-5rem] top-8 hidden w-[34rem] opacity-10 lg:block">
+        <img src="{{ asset('images/church-life/church-congregation.jpeg') }}" alt="{{ __('messages.church_congregation_photo') }}" class="absolute inset-0 h-full w-full object-cover opacity-45">
+        <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/80 to-slate-950/25"></div>
         <div class="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-red-700 via-yellow-400 to-red-700"></div>
-        <div class="mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
-            <div class="relative z-10">
+        <div class="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] max-w-7xl flex-col justify-center px-4 py-16 sm:px-6 lg:px-8">
+            <div class="max-w-3xl">
                 <p class="text-sm font-bold uppercase tracking-[0.22em] text-yellow-300">{{ __('messages.parent_church_name') }}</p>
                 <h1 class="mt-5 max-w-3xl text-4xl font-extrabold leading-tight sm:text-6xl">
                     {{ __('messages.public_hero_title') }}
@@ -27,36 +28,21 @@
                 </div>
             </div>
 
-            <div class="relative z-10 rounded-lg border border-white/10 bg-white p-6 text-slate-950 shadow-2xl">
-                <div class="flex items-center gap-4">
-                    <img src="{{ asset('images/tag-mother-logo.png') }}" alt="Tanzania Assemblies of God" class="h-20 w-20 object-contain">
-                    <div>
-                        <p class="text-sm font-bold uppercase tracking-wide text-red-700">{{ __('messages.local_church_name') }}</p>
-                        <h2 class="mt-1 text-2xl font-bold">{{ __('messages.mbwanga_dodoma') }}</h2>
-                    </div>
+            <div class="mt-12 grid gap-3 rounded-lg border border-white/15 bg-white/95 p-4 text-slate-950 shadow-2xl sm:grid-cols-3">
+                <div class="rounded-md bg-red-50 p-4">
+                    <p class="text-sm font-semibold text-red-700">{{ __('messages.members') }}</p>
+                    <p class="mt-2 text-3xl font-extrabold">{{ number_format($memberCount) }}</p>
                 </div>
-                <div class="mt-6 grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-md bg-red-50 p-4">
-                        <p class="text-sm font-semibold text-red-700">{{ __('messages.members') }}</p>
-                        <p class="mt-2 text-3xl font-extrabold">{{ number_format($memberCount) }}</p>
-                    </div>
-                    <div class="rounded-md bg-yellow-50 p-4">
-                        <p class="text-sm font-semibold text-yellow-700">{{ __('messages.departments') }}</p>
-                        <p class="mt-2 text-3xl font-extrabold">{{ number_format($departmentCount) }}</p>
-                    </div>
+                <div class="rounded-md bg-yellow-50 p-4">
+                    <p class="text-sm font-semibold text-yellow-700">{{ __('messages.departments') }}</p>
+                    <p class="mt-2 text-3xl font-extrabold">{{ number_format($departmentCount) }}</p>
                 </div>
-                <div class="mt-6 rounded-md border border-slate-200 p-4">
+                <div class="rounded-md bg-slate-50 p-4">
                     <p class="text-sm font-bold text-slate-500">{{ __('messages.weekly_leadership_duty') }}</p>
-                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div>
-                            <p class="text-xs font-bold uppercase text-slate-500">{{ __('messages.elder') }}</p>
-                            <p class="mt-1 font-semibold">{{ $formatMemberName($weeklyDuty?->elder) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold uppercase text-slate-500">{{ __('messages.deacon') }}</p>
-                            <p class="mt-1 font-semibold">{{ $formatMemberName($weeklyDuty?->deacon) }}</p>
-                        </div>
-                    </div>
+                    <p class="mt-2 text-xs font-bold uppercase text-slate-500">{{ __('messages.elder') }}</p>
+                    <p class="mt-1 font-semibold">{{ $formatMemberName($weeklyDuty?->elder) }}</p>
+                    <p class="mt-3 text-xs font-bold uppercase text-slate-500">{{ __('messages.deacon') }}</p>
+                    <p class="mt-1 font-semibold">{{ $formatMemberName($weeklyDuty?->deacon) }}</p>
                 </div>
             </div>
         </div>
@@ -82,6 +68,29 @@
                         </article>
                     @endforeach
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-slate-950 py-14 text-white">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl">
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-yellow-300">{{ __('messages.church_life') }}</p>
+                <h2 class="mt-3 text-3xl font-extrabold">{{ __('messages.church_life_title') }}</h2>
+                <p class="mt-4 text-sm leading-7 text-slate-300">{{ __('messages.church_life_summary') }}</p>
+            </div>
+
+            <div class="mt-8 grid gap-4 md:grid-cols-3">
+                @foreach ([
+                    ['image' => 'church-congregation.jpeg', 'title' => __('messages.gallery_congregation_title'), 'alt' => __('messages.church_congregation_photo')],
+                    ['image' => 'church-family-dedication.jpeg', 'title' => __('messages.gallery_family_title'), 'alt' => __('messages.church_family_photo')],
+                    ['image' => 'women-ministry.jpeg', 'title' => __('messages.gallery_women_title'), 'alt' => __('messages.women_ministry_photo')],
+                ] as $photo)
+                    <figure class="overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                        <img src="{{ asset('images/church-life/'.$photo['image']) }}" alt="{{ $photo['alt'] }}" class="h-64 w-full object-cover">
+                        <figcaption class="p-4 text-sm font-bold text-slate-100">{{ $photo['title'] }}</figcaption>
+                    </figure>
+                @endforeach
             </div>
         </div>
     </section>
