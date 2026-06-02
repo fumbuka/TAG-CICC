@@ -13,10 +13,12 @@ use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\Service;
 use App\Models\ServiceType;
+use App\Models\SiteVisit;
 use App\Models\User;
 use App\Models\WeeklyDuty;
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -111,12 +113,65 @@ class DashboardTest extends TestCase
             ->assertViewHas('zoneCount', 1)
             ->assertViewHas('serviceCount', 1)
             ->assertViewHas('cashTotal', 15000.0)
+            ->assertViewHas('siteVisitorStats', ['today' => 0, 'month' => 0, 'year' => 0])
             ->assertSee('TZS 15,000.00')
             ->assertSee('Sherehe ya Kina Mama')
             ->assertSee('Mzee Baraka')
             ->assertSee('Shemasi Neema')
             ->assertSee('3')
             ->assertSee('1');
+    }
+
+    public function test_dashboard_shows_unique_public_website_visitors_by_day_month_and_year(): void
+    {
+        $this->travelTo(Carbon::parse('2026-06-15 12:00:00'));
+
+        $user = User::factory()->create();
+        Permission::create([
+            'name' => 'users.manage',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('users.manage');
+
+        SiteVisit::create([
+            'visitor_hash' => 'visitor-one',
+            'path' => '/',
+            'visited_at' => now()->subHour(),
+        ]);
+        SiteVisit::create([
+            'visitor_hash' => 'visitor-one',
+            'path' => '/about',
+            'visited_at' => now()->subMinutes(30),
+        ]);
+        SiteVisit::create([
+            'visitor_hash' => 'visitor-two',
+            'path' => '/ministries',
+            'visited_at' => now()->subMinutes(10),
+        ]);
+        SiteVisit::create([
+            'visitor_hash' => 'visitor-three',
+            'path' => '/public-calendar',
+            'visited_at' => now()->subDays(3),
+        ]);
+        SiteVisit::create([
+            'visitor_hash' => 'visitor-four',
+            'path' => '/weekly-leadership',
+            'visited_at' => now()->subMonth(),
+        ]);
+        SiteVisit::create([
+            'visitor_hash' => 'visitor-five',
+            'path' => '/',
+            'visited_at' => now()->subYear(),
+        ]);
+
+        $this->actingAs($user)
+            ->get('/dashboard')
+            ->assertOk()
+            ->assertViewHas('siteVisitorStats', ['today' => 2, 'month' => 3, 'year' => 4])
+            ->assertSee(__('messages.site_visitors'))
+            ->assertSee(__('messages.site_visitors_today'))
+            ->assertSee(__('messages.site_visitors_month'))
+            ->assertSee(__('messages.site_visitors_year'));
     }
 
     public function test_dashboard_shows_weekly_duty_to_user_without_calendar_manage_permission(): void

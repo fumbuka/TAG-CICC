@@ -8,12 +8,14 @@ use App\Models\Expense;
 use App\Models\FinancialTransaction;
 use App\Models\Member;
 use App\Models\Service;
+use App\Models\SiteVisit;
 use App\Models\User;
 use App\Models\WeeklyDuty;
 use App\Models\Zone;
 use App\Support\UserDataScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -33,6 +35,7 @@ class DashboardController extends Controller
             'serviceCount' => $scope->applyServiceScope(Service::query())->count(),
             'cashTotal' => $scope->canSeeFinance() ? (float) $incomeQuery->sum('amount') - (float) $expenseQuery->sum('amount') : null,
             'systemAccessCount' => User::query()->whereHas('member')->where('is_active', true)->count(),
+            'siteVisitorStats' => $this->siteVisitorStats($today),
             'today' => $today,
             'upcomingEvents' => $scope->applyCalendarEventScope(
                 CalendarEvent::query()
@@ -68,5 +71,35 @@ class DashboardController extends Controller
             ->whereDate('week_start', '>', $today->toDateString())
             ->orderBy('week_start')
             ->first();
+    }
+
+    /**
+     * Counts unique public website visitors without exposing raw IP addresses.
+     *
+     * @return array{today: int, month: int, year: int}
+     */
+    private function siteVisitorStats(Carbon $today): array
+    {
+        if (! Schema::hasTable('site_visits')) {
+            return [
+                'today' => 0,
+                'month' => 0,
+                'year' => 0,
+            ];
+        }
+
+        return [
+            'today' => $this->uniqueSiteVisitorsBetween($today->copy()->startOfDay(), $today->copy()->endOfDay()),
+            'month' => $this->uniqueSiteVisitorsBetween($today->copy()->startOfMonth(), $today->copy()->endOfMonth()),
+            'year' => $this->uniqueSiteVisitorsBetween($today->copy()->startOfYear(), $today->copy()->endOfYear()),
+        ];
+    }
+
+    private function uniqueSiteVisitorsBetween(Carbon $start, Carbon $end): int
+    {
+        return SiteVisit::query()
+            ->whereBetween('visited_at', [$start, $end])
+            ->distinct('visitor_hash')
+            ->count('visitor_hash');
     }
 }

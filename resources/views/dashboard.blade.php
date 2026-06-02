@@ -111,6 +111,33 @@
                 @endcan
             </div>
 
+            @canany(['users.manage', 'reports.view'])
+                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-red-700">{{ __('messages.site_visitors') }}</p>
+                            <h3 class="mt-1 text-2xl font-semibold text-gray-950">{{ __('messages.site_visitors_overview') }}</h3>
+                        </div>
+                        <p class="max-w-xl text-sm text-gray-600">{{ __('messages.site_visitors_help') }}</p>
+                    </div>
+
+                    <div class="mt-5 grid gap-4 md:grid-cols-3">
+                        <div class="rounded-lg bg-gray-50 p-4">
+                            <p class="text-sm font-medium text-gray-500">{{ __('messages.site_visitors_today') }}</p>
+                            <p class="mt-2 text-3xl font-semibold text-gray-950">{{ number_format($siteVisitorStats['today']) }}</p>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-4">
+                            <p class="text-sm font-medium text-gray-500">{{ __('messages.site_visitors_month') }}</p>
+                            <p class="mt-2 text-3xl font-semibold text-gray-950">{{ number_format($siteVisitorStats['month']) }}</p>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-4">
+                            <p class="text-sm font-medium text-gray-500">{{ __('messages.site_visitors_year') }}</p>
+                            <p class="mt-2 text-3xl font-semibold text-gray-950">{{ number_format($siteVisitorStats['year']) }}</p>
+                        </div>
+                    </div>
+                </section>
+            @endcanany
+
             <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
                 <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                     <div class="flex items-start justify-between gap-4">
