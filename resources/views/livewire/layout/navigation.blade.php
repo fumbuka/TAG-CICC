@@ -19,6 +19,7 @@ new class extends Component
 @php
     $user = auth()->user();
     $can = fn (string|array $abilities): bool => collect((array) $abilities)->contains(fn (string $ability): bool => $user?->can($ability) ?? false);
+    $smsAbilities = ['sms.view', 'sms.buy', 'sms.compose', 'sms.wallets', 'sms.approve', 'sms.reports', 'sms.settings'];
 
     $navGroups = [
         [
@@ -133,11 +134,16 @@ new class extends Component
                         ['label' => __('messages.transactions'), 'href' => route('finance.index', 'transactions'), 'visible' => $can(['finance.view', 'finance.record', 'finance.transactions'])],
                     ],
                 ],
+            ],
+        ],
+        [
+            'label' => __('messages.communication'),
+            'items' => [
                 [
                     'label' => __('messages.sms'),
                     'href' => route('sms.index'),
                     'active' => request()->routeIs('sms.*'),
-                    'visible' => $can(['sms.view', 'sms.buy', 'sms.compose', 'sms.wallets', 'sms.approve', 'sms.reports', 'sms.settings']),
+                    'visible' => $can($smsAbilities),
                     'icon' => 'sms',
                     'children' => [
                         ['label' => __('messages.sms_dashboard'), 'href' => route('sms.index'), 'visible' => $can('sms.view')],

@@ -109,6 +109,14 @@
                         <p class="mt-2 text-sm text-gray-600">{{ __('messages.members_with_system_access') }}</p>
                     </a>
                 @endcan
+
+                @canany(['sms.view', 'sms.buy', 'sms.compose', 'sms.wallets', 'sms.approve', 'sms.reports', 'sms.settings'])
+                    <a href="{{ route('sms.index') }}" wire:navigate class="{{ $statCardClass }}">
+                        <p class="text-sm font-medium text-red-700">{{ __('messages.sms') }}</p>
+                        <p class="mt-3 text-4xl font-semibold text-gray-950">SMS</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ __('messages.sms_dashboard_shortcut') }}</p>
+                    </a>
+                @endcanany
             </div>
 
             @canany(['users.manage', 'reports.view'])
