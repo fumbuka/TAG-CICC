@@ -11,6 +11,7 @@ use App\Livewire\Leadership\Index as LeadershipIndex;
 use App\Livewire\Members\Index as MembersIndex;
 use App\Livewire\Reports\Index as ReportsIndex;
 use App\Livewire\Services\Index as ServicesIndex;
+use App\Livewire\Sms\Index as SmsIndex;
 use App\Livewire\Users\Index as UsersIndex;
 use App\Livewire\Visitors\Index as VisitorsIndex;
 use App\Livewire\Zones\Index as ZonesIndex;
@@ -89,6 +90,10 @@ Route::middleware(['auth'])->group(function () {
         ->whereIn('section', ['summary', 'income-categories', 'expense-categories', 'expenses', 'pledges', 'transactions'])
         ->middleware('permission:finance.view|finance.record|finance.summary|finance.income-categories|finance.expense-categories|finance.expenses|finance.pledges|finance.transactions')
         ->name('finance.index');
+    Route::get('sms/{section?}', SmsIndex::class)
+        ->whereIn('section', ['dashboard', 'buy', 'compose', 'campaigns', 'wallets', 'approvals', 'reports', 'settings'])
+        ->middleware('permission:sms.view|sms.buy|sms.compose|sms.wallets|sms.approve|sms.reports|sms.settings')
+        ->name('sms.index');
     Route::get('calendar/{section?}', CalendarIndex::class)
         ->whereIn('section', ['events', 'create', 'weekly-duties'])
         ->middleware('permission:calendar.manage|calendar.submit|calendar.events|calendar.create|calendar.weekly-duties')

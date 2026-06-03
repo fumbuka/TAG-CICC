@@ -130,6 +130,27 @@ class UserDataScope
         return $this->user->can('finance.view') || $this->user->can('finance.record');
     }
 
+    public function isChurchWide(): bool
+    {
+        return $this->churchWide;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function departmentIds(): array
+    {
+        return $this->departmentIds;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function zoneIds(): array
+    {
+        return $this->zoneIds;
+    }
+
     public function applyMemberScope(Builder $query): Builder
     {
         if ($this->churchWide) {

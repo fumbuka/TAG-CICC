@@ -46,6 +46,13 @@ class DatabaseSeeder extends Seeder
             'reports.submit',
             'reports.approve',
             'users.manage',
+            'sms.view',
+            'sms.buy',
+            'sms.compose',
+            'sms.wallets',
+            'sms.approve',
+            'sms.reports',
+            'sms.settings',
         ];
 
         $submodulePermissions = [
@@ -74,6 +81,8 @@ class DatabaseSeeder extends Seeder
             'users.list',
             'users.access',
             'users.role-matrix',
+            'sms.dashboard',
+            'sms.campaigns',
         ];
 
         $permissions = array_values(array_unique([...$basePermissions, ...$submodulePermissions]));
@@ -112,6 +121,13 @@ class DatabaseSeeder extends Seeder
                 'leadership.assignments',
                 'reports.view',
                 'reports.approve',
+                'sms.view',
+                'sms.buy',
+                'sms.compose',
+                'sms.wallets',
+                'sms.approve',
+                'sms.reports',
+                'sms.settings',
             ],
             'Katibu wa Kanisa' => [
                 'dashboard.view',
@@ -142,6 +158,11 @@ class DatabaseSeeder extends Seeder
                 'users.manage',
                 'users.list',
                 'users.access',
+                'sms.view',
+                'sms.buy',
+                'sms.compose',
+                'sms.wallets',
+                'sms.reports',
             ],
             'Mhasibu wa Kanisa' => [
                 'dashboard.view',
@@ -153,6 +174,9 @@ class DatabaseSeeder extends Seeder
                 'finance.expenses',
                 'finance.pledges',
                 'finance.transactions',
+                'sms.view',
+                'sms.approve',
+                'sms.reports',
             ],
             'Mkurugenzi wa Idara' => [
                 'dashboard.view',
@@ -162,12 +186,19 @@ class DatabaseSeeder extends Seeder
                 'services.list',
                 'services.record',
                 'reports.submit',
+                'sms.view',
+                'sms.buy',
+                'sms.compose',
+                'sms.reports',
             ],
             'Makamu Mkurugenzi wa Idara' => [
                 'dashboard.view',
                 'members.view',
                 'members.list',
                 'reports.submit',
+                'sms.view',
+                'sms.buy',
+                'sms.compose',
             ],
             'Katibu wa Idara' => [
                 'dashboard.view',
@@ -177,6 +208,10 @@ class DatabaseSeeder extends Seeder
                 'calendar.events',
                 'calendar.create',
                 'reports.submit',
+                'sms.view',
+                'sms.buy',
+                'sms.compose',
+                'sms.reports',
             ],
             'Makamu Katibu wa Idara' => [
                 'dashboard.view',
@@ -186,6 +221,9 @@ class DatabaseSeeder extends Seeder
                 'calendar.events',
                 'calendar.create',
                 'reports.submit',
+                'sms.view',
+                'sms.buy',
+                'sms.compose',
             ],
             'Mweka Hazina wa Idara' => [
                 'dashboard.view',
@@ -197,6 +235,9 @@ class DatabaseSeeder extends Seeder
                 'finance.pledges',
                 'finance.transactions',
                 'reports.submit',
+                'sms.view',
+                'sms.buy',
+                'sms.reports',
             ],
             'Kiongozi wa Kanda' => [
                 'dashboard.view',

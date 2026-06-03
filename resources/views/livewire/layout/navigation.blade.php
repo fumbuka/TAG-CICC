@@ -133,6 +133,23 @@ new class extends Component
                         ['label' => __('messages.transactions'), 'href' => route('finance.index', 'transactions'), 'visible' => $can(['finance.view', 'finance.record', 'finance.transactions'])],
                     ],
                 ],
+                [
+                    'label' => __('messages.sms'),
+                    'href' => route('sms.index'),
+                    'active' => request()->routeIs('sms.*'),
+                    'visible' => $can(['sms.view', 'sms.buy', 'sms.compose', 'sms.wallets', 'sms.approve', 'sms.reports', 'sms.settings']),
+                    'icon' => 'sms',
+                    'children' => [
+                        ['label' => __('messages.sms_dashboard'), 'href' => route('sms.index'), 'visible' => $can('sms.view')],
+                        ['label' => __('messages.sms_buy_credits'), 'href' => route('sms.index', 'buy'), 'visible' => $can('sms.buy')],
+                        ['label' => __('messages.sms_compose'), 'href' => route('sms.index', 'compose'), 'visible' => $can('sms.compose')],
+                        ['label' => __('messages.sms_campaign_history'), 'href' => route('sms.index', 'campaigns'), 'visible' => $can('sms.view')],
+                        ['label' => __('messages.sms_wallets_management'), 'href' => route('sms.index', 'wallets'), 'visible' => $can('sms.wallets')],
+                        ['label' => __('messages.sms_purchase_approval'), 'href' => route('sms.index', 'approvals'), 'visible' => $can('sms.approve')],
+                        ['label' => __('messages.sms_reports'), 'href' => route('sms.index', 'reports'), 'visible' => $can('sms.reports')],
+                        ['label' => __('messages.sms_settings'), 'href' => route('sms.index', 'settings'), 'visible' => $can('sms.settings')],
+                    ],
+                ],
             ],
         ],
         [

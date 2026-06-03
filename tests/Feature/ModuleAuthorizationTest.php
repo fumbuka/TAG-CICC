@@ -20,6 +20,7 @@ class ModuleAuthorizationTest extends TestCase
             'departments.manage',
             'zones.manage',
             'services.manage',
+            'sms.view',
         ])->each(fn (string $permission) => Permission::create([
             'name' => $permission,
             'guard_name' => 'web',
@@ -30,6 +31,7 @@ class ModuleAuthorizationTest extends TestCase
             '/departments' => 'departments.manage',
             '/zones' => 'zones.manage',
             '/services' => 'services.manage',
+            '/sms' => 'sms.view',
         ] as $path => $permission) {
             $this->actingAs($user)->get($path)->assertForbidden();
 
