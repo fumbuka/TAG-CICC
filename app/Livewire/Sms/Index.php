@@ -4,6 +4,7 @@ namespace App\Livewire\Sms;
 
 use App\Livewire\Concerns\ChecksSeededPermissions;
 use App\Models\Department;
+use App\Models\Member;
 use App\Models\SmsCampaign;
 use App\Models\SmsLog;
 use App\Models\SmsPurchase;
@@ -44,6 +45,11 @@ class Index extends Component
     public string $compose_target_type = 'all_members';
 
     public string $compose_department_id = '';
+
+    /**
+     * @var array<int, int|string>
+     */
+    public array $compose_member_ids = [];
 
     public string $compose_message = '';
 
@@ -319,7 +325,7 @@ class Index extends Component
             'message' => $validated['compose_message'],
             'recipients_count' => $recipients->count(),
             'sms_parts' => $parts,
-            'total_credits_used' => $requiredCredits,
+            'total_credits_used' => 0,
             'status' => SmsCampaign::STATUS_PENDING,
         ]);
 
@@ -334,7 +340,7 @@ class Index extends Component
                     Auth::user(),
                 );
 
-                foreach ($recipients as $recipient) {
+                foreach ($recipients->values() as $index => $recipient) {
                     SmsLog::create([
                         'sms_campaign_id' => $campaign->id,
                         'member_id' => $recipient['member_id'] ?? null,
@@ -343,12 +349,14 @@ class Index extends Component
                         'phone_number' => $recipient['phone_number'],
                         'message' => $validated['compose_message'],
                         'status' => SmsLog::STATUS_SENT,
+                        'beem_message_id' => $this->messageIdFromProviderResponse($providerResponse, $index),
                         'provider_response' => $providerResponse,
                     ]);
                 }
 
                 $campaign->update([
                     'status' => SmsCampaign::STATUS_SENT,
+                    'total_credits_used' => $requiredCredits,
                     'beem_response' => $providerResponse,
                     'sent_at' => now(),
                 ]);
@@ -379,6 +387,94 @@ class Index extends Component
 
         $this->resetComposeForm();
         $this->dispatch('sms-campaign-sent');
+    }
+
+    public function retryCampaign(int $campaignId): void
+    {
+        abort_unless($this->canComposeSms(), 403);
+
+        $walletService = app(SmsWalletService::class);
+        $beemSmsService = app(BeemSmsService::class);
+        $campaign = SmsCampaign::query()
+            ->with(['wallet', 'logs' => fn ($query) => $query->where('status', SmsLog::STATUS_FAILED)])
+            ->findOrFail($campaignId);
+
+        $this->authorizeWalletAccess($campaign->wallet);
+
+        $failedLogs = $campaign->logs;
+        if ($failedLogs->isEmpty()) {
+            return;
+        }
+
+        $requiredCredits = $failedLogs->count() * max((int) $campaign->sms_parts, 1);
+        $wallet = $campaign->wallet->refresh();
+        $settings = SmsSetting::current();
+
+        if ($wallet->balance < $requiredCredits) {
+            $this->addError('compose_wallet_id', __('messages.sms_insufficient_balance_with_required', [
+                'required' => $requiredCredits,
+                'balance' => $wallet->balance,
+            ]));
+
+            return;
+        }
+
+        if (! $settings->sending_enabled) {
+            $this->addError('compose_wallet_id', __('messages.sms_sending_disabled'));
+
+            return;
+        }
+
+        $recipients = $failedLogs->values()->map(fn (SmsLog $log): array => [
+            'name' => $log->recipient_name,
+            'phone_number' => $log->phone_number,
+            'member_id' => $log->member_id,
+            'visitor_id' => $log->visitor_id,
+        ]);
+
+        try {
+            $providerResponse = $beemSmsService->send($campaign->message, $recipients->all(), $settings->sender_id);
+
+            DB::transaction(function () use ($campaign, $failedLogs, $providerResponse, $walletService, $wallet, $requiredCredits): void {
+                $walletService->deductCredits(
+                    $wallet,
+                    $requiredCredits,
+                    __('messages.sms_campaign_retry_ledger_description', ['campaign' => $campaign->title]),
+                    Auth::user(),
+                );
+
+                foreach ($failedLogs->values() as $index => $log) {
+                    $log->update([
+                        'status' => SmsLog::STATUS_SENT,
+                        'beem_message_id' => $this->messageIdFromProviderResponse($providerResponse, $index),
+                        'error_message' => null,
+                        'provider_response' => $providerResponse,
+                    ]);
+                }
+
+                $campaign->update([
+                    'total_credits_used' => (int) $campaign->total_credits_used + $requiredCredits,
+                    'status' => SmsCampaign::STATUS_SENT,
+                    'beem_response' => $providerResponse,
+                    'sent_at' => now(),
+                ]);
+            });
+        } catch (RuntimeException $exception) {
+            $campaign->update([
+                'status' => SmsCampaign::STATUS_FAILED,
+                'beem_response' => ['error' => $exception->getMessage()],
+            ]);
+
+            $failedLogs->each(fn (SmsLog $log) => $log->update([
+                'error_message' => $exception->getMessage(),
+            ]));
+
+            $this->addError('compose_wallet_id', $exception->getMessage());
+
+            return;
+        }
+
+        $this->dispatch('sms-campaign-retried');
     }
 
     public function render(): View
@@ -416,6 +512,8 @@ class Index extends Component
             $this->purchase_wallet_id = (string) $selectedWallet->id;
         }
 
+        $walletIds = $activeWallets->pluck('id');
+
         return view('livewire.sms.index', [
             'section' => $this->section,
             'smsSections' => $this->smsSections(),
@@ -423,30 +521,33 @@ class Index extends Component
             'wallets' => $visibleWallets->with(['department', 'user'])->orderBy('owner_type')->orderBy('name')->get(),
             'activeWallets' => $activeWallets,
             'departmentOptions' => $this->departmentOptions($scope),
+            'recipientMembers' => $this->recipientMemberOptions($scope),
             'targetOptions' => $targetOptions,
             'users' => User::query()->whereHas('member')->orderBy('name')->get(),
             'purchases' => SmsPurchase::query()
                 ->with(['wallet.department', 'wallet.user', 'requestedBy', 'approvedBy'])
-                ->when(! $this->canApproveSms(), fn ($query) => $query->whereIn('sms_wallet_id', $activeWallets->pluck('id')))
+                ->when(! $this->canApproveSms(), fn ($query) => $query->whereIn('sms_wallet_id', $walletIds))
                 ->latest()
                 ->limit(25)
                 ->get(),
             'campaigns' => SmsCampaign::query()
-                ->with(['wallet.department', 'wallet.user', 'sentBy', 'department'])
-                ->whereIn('sms_wallet_id', $activeWallets->pluck('id'))
+                ->with(['wallet.department', 'wallet.user', 'sentBy', 'department', 'logs'])
+                ->whereIn('sms_wallet_id', $walletIds)
                 ->latest()
                 ->limit(25)
                 ->get(),
             'transactions' => SmsTransaction::query()
                 ->with(['wallet', 'performedBy'])
-                ->whereIn('sms_wallet_id', $activeWallets->pluck('id'))
+                ->whereIn('sms_wallet_id', $walletIds)
                 ->latest()
                 ->limit(25)
                 ->get(),
             'failedSmsCount' => SmsLog::query()
-                ->whereHas('campaign', fn ($query) => $query->whereIn('sms_wallet_id', $activeWallets->pluck('id')))
+                ->whereHas('campaign', fn ($query) => $query->whereIn('sms_wallet_id', $walletIds))
                 ->where('status', SmsLog::STATUS_FAILED)
                 ->count(),
+            'reportSummary' => $this->reportSummary($walletIds, $activeWallets),
+            'walletUsageSummary' => $this->walletUsageSummary($activeWallets),
             'preview' => $this->composePreview($resolver, $counter),
             'canBuySms' => $this->canBuySms(),
             'canComposeSms' => $this->canComposeSms(),
@@ -474,15 +575,17 @@ class Index extends Component
         return $this->validate([
             'compose_wallet_id' => ['required', 'integer', Rule::exists('sms_wallets', 'id')],
             'compose_title' => ['required', 'string', 'max:255'],
-            'compose_target_type' => ['required', Rule::in(['all_members', 'visitors', 'department_members'])],
+            'compose_target_type' => ['required', Rule::in(['all_members', 'visitors', 'department_members', 'custom_members'])],
             'compose_department_id' => ['nullable', 'required_if:compose_target_type,department_members', 'integer', Rule::exists('departments', 'id')],
+            'compose_member_ids' => [Rule::requiredIf($this->compose_target_type === 'custom_members'), 'array', 'max:500'],
+            'compose_member_ids.*' => ['integer', Rule::exists('members', 'id')],
             'compose_message' => ['required', 'string', 'max:2000'],
         ]);
     }
 
     private function resetComposeForm(): void
     {
-        $this->reset(['compose_title', 'compose_message', 'compose_department_id']);
+        $this->reset(['compose_title', 'compose_message', 'compose_department_id', 'compose_member_ids']);
         $this->compose_target_type = 'all_members';
         $this->resetErrorBag();
     }
@@ -538,6 +641,7 @@ class Index extends Component
 
         if ($scope->isChurchWide() || $scope->departmentIds() !== []) {
             $options['department_members'] = __('messages.sms_target_department_members');
+            $options['custom_members'] = __('messages.sms_target_custom_members');
         }
 
         return $options;
@@ -549,6 +653,17 @@ class Index extends Component
             ->where('is_active', true)
             ->when(! $scope->isChurchWide(), fn ($query) => $query->whereIn('id', $scope->departmentIds()))
             ->orderBy('name')
+            ->get();
+    }
+
+    private function recipientMemberOptions(UserDataScope $scope)
+    {
+        return $scope->applyMemberScope(Member::query())
+            ->where('membership_status', 'active')
+            ->whereNotNull('phone_number')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->limit(500)
             ->get();
     }
 
@@ -596,7 +711,73 @@ class Index extends Component
             Auth::user(),
             $this->compose_target_type,
             $this->compose_department_id !== '' ? (int) $this->compose_department_id : null,
+            $this->compose_member_ids,
         );
+    }
+
+    private function reportSummary($walletIds, $activeWallets): array
+    {
+        return [
+            'wallets_count' => $activeWallets->count(),
+            'current_balance' => (int) $activeWallets->sum('balance'),
+            'credits_purchased' => (int) SmsTransaction::query()
+                ->whereIn('sms_wallet_id', $walletIds)
+                ->where('transaction_type', SmsTransaction::TYPE_PURCHASE)
+                ->sum('credits_in'),
+            'credits_used' => (int) SmsTransaction::query()
+                ->whereIn('sms_wallet_id', $walletIds)
+                ->where('transaction_type', SmsTransaction::TYPE_USAGE)
+                ->sum('credits_out'),
+            'paid_revenue' => (int) SmsPurchase::query()
+                ->whereIn('sms_wallet_id', $walletIds)
+                ->where('status', SmsPurchase::STATUS_PAID)
+                ->sum('total_amount'),
+            'pending_value' => (int) SmsPurchase::query()
+                ->whereIn('sms_wallet_id', $walletIds)
+                ->whereIn('status', [SmsPurchase::STATUS_PENDING, SmsPurchase::STATUS_APPROVED])
+                ->sum('total_amount'),
+        ];
+    }
+
+    private function walletUsageSummary($activeWallets)
+    {
+        $highestUsage = max((int) $activeWallets->max('credits_used'), 1);
+
+        return $activeWallets
+            ->sortByDesc('credits_used')
+            ->map(fn (SmsWallet $wallet): array => [
+                'name' => $wallet->name,
+                'owner' => $wallet->ownerLabel(),
+                'purchased' => (int) $wallet->credits_purchased,
+                'used' => (int) $wallet->credits_used,
+                'balance' => (int) $wallet->balance,
+                'usage_percent' => round(((int) $wallet->credits_used / $highestUsage) * 100),
+            ])
+            ->values();
+    }
+
+    private function messageIdFromProviderResponse(array $providerResponse, int $recipientIndex): ?string
+    {
+        $paths = [
+            "messages.$recipientIndex.message_id",
+            "messages.$recipientIndex.messageId",
+            "recipients.$recipientIndex.message_id",
+            "recipients.$recipientIndex.messageId",
+            "data.$recipientIndex.message_id",
+            "data.$recipientIndex.messageId",
+            'message_id',
+            'messageId',
+        ];
+
+        foreach ($paths as $path) {
+            $value = data_get($providerResponse, $path);
+
+            if (is_scalar($value) && (string) $value !== '') {
+                return (string) $value;
+            }
+        }
+
+        return null;
     }
 
     private function canAccessSection(string $section): bool

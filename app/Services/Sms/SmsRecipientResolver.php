@@ -15,7 +15,7 @@ class SmsRecipientResolver
     /**
      * @return Collection<int, array{name: string, phone_number: string, member_id?: int|null, visitor_id?: int|null}>
      */
-    public function resolve(User $user, string $targetType, ?int $departmentId = null): Collection
+    public function resolve(User $user, string $targetType, ?int $departmentId = null, array $memberIds = []): Collection
     {
         $scope = UserDataScope::for($user);
 
@@ -23,6 +23,7 @@ class SmsRecipientResolver
             'all_members' => $this->resolveAllMembers($user, $scope),
             'visitors' => $this->resolveVisitors($user, $scope),
             'department_members' => $this->resolveDepartmentMembers($scope, $departmentId),
+            'custom_members' => $this->resolveCustomMembers($scope, $memberIds),
             default => collect(),
         };
     }
@@ -80,6 +81,37 @@ class SmsRecipientResolver
                 $query->where('departments.id', $departmentId)
                     ->where('member_departments.is_active', true);
             })
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get());
+    }
+
+    /**
+     * @param  array<int, int|string>  $memberIds
+     * @return Collection<int, array{name: string, phone_number: string, member_id: int}>
+     */
+    private function resolveCustomMembers(UserDataScope $scope, array $memberIds): Collection
+    {
+        $memberIds = collect($memberIds)
+            ->map(fn (int|string $id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($memberIds->isEmpty()) {
+            throw new RuntimeException(__('messages.sms_custom_recipients_required'));
+        }
+
+        $accessibleMembersQuery = $scope->applyMemberScope(Member::query())
+            ->whereKey($memberIds->all())
+            ->where('membership_status', 'active');
+
+        if ((clone $accessibleMembersQuery)->count() !== $memberIds->count()) {
+            throw new RuntimeException(__('messages.sms_recipient_scope_denied'));
+        }
+
+        return $this->memberRows($accessibleMembersQuery
+            ->whereNotNull('phone_number')
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get());

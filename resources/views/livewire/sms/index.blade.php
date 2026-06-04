@@ -30,6 +30,7 @@
             x-on:sms-settings-updated.window="message = '{{ __('messages.sms_settings_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:sms-campaign-previewed.window="message = '{{ __('messages.sms_campaign_preview_ready') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:sms-campaign-sent.window="message = '{{ __('messages.sms_campaign_sent') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:sms-campaign-retried.window="message = '{{ __('messages.sms_campaign_retried') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -97,6 +98,25 @@
                             </div>
                         @empty
                             <p class="text-sm text-gray-600">{{ __('messages.sms_no_campaigns') }}</p>
+                        @endforelse
+                    </div>
+                </section>
+                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm lg:col-span-3">
+                    <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_recent_purchases') }}</h2>
+                    <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        @forelse ($purchases->take(6) as $purchase)
+                            <div class="rounded-md border border-gray-100 bg-gray-50 p-4">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p class="font-medium text-gray-950">{{ $purchase->wallet?->name }}</p>
+                                        <p class="text-sm text-gray-500">{{ $purchase->requestedBy?->name }} · {{ $purchase->created_at?->format('d M Y') }}</p>
+                                    </div>
+                                    <span class="rounded-full bg-white px-2 py-1 text-xs font-semibold text-gray-600">{{ __('messages.sms_purchase_status_'.$purchase->status) }}</span>
+                                </div>
+                                <p class="mt-3 text-sm text-gray-600">{{ number_format($purchase->sms_quantity) }} {{ __('messages.sms_credits') }} · {{ __('messages.currency_tzs') }} {{ number_format($purchase->total_amount) }}</p>
+                            </div>
+                        @empty
+                            <p class="text-sm text-gray-600">{{ __('messages.sms_no_purchases') }}</p>
                         @endforelse
                     </div>
                 </section>
@@ -177,6 +197,19 @@
                                     <x-input-error :messages="$errors->get('compose_department_id')" class="mt-2" />
                                 </div>
                             @endif
+                            @if ($compose_target_type === 'custom_members')
+                                <div class="md:col-span-2">
+                                    <x-input-label for="compose_member_ids" :value="__('messages.sms_custom_recipients')" />
+                                    <select wire:model.live="compose_member_ids" id="compose_member_ids" multiple size="8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                        @foreach ($recipientMembers as $member)
+                                            <option value="{{ $member->id }}">{{ $member->fullName() }} · {{ $member->phone_number }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="mt-2 text-xs text-gray-500">{{ __('messages.sms_custom_recipients_help') }}</p>
+                                    <x-input-error :messages="$errors->get('compose_member_ids')" class="mt-2" />
+                                    <x-input-error :messages="$errors->get('compose_member_ids.*')" class="mt-2" />
+                                </div>
+                            @endif
                         </div>
                         <div>
                             <x-input-label for="compose_message" :value="__('messages.sms_message')" />
@@ -241,10 +274,12 @@
                                 <th class="px-4 py-3">{{ __('messages.sms_credits_used') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.status') }}</th>
                                 <th class="px-4 py-3">{{ __('messages.date') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.actions') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
                             @forelse ($campaigns as $campaign)
+                                @php($failedLogs = $campaign->logs->where('status', \App\Models\SmsLog::STATUS_FAILED)->count())
                                 <tr>
                                     <td class="px-4 py-3 font-medium text-gray-950">{{ $campaign->title }}</td>
                                     <td class="px-4 py-3 text-gray-600">{{ $campaign->wallet?->name }}</td>
@@ -252,9 +287,18 @@
                                     <td class="px-4 py-3 text-gray-600">{{ number_format($campaign->total_credits_used) }}</td>
                                     <td class="px-4 py-3"><span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">{{ __('messages.sms_status_'.$campaign->status) }}</span></td>
                                     <td class="px-4 py-3 text-gray-600">{{ $campaign->created_at?->format('d M Y H:i') }}</td>
+                                    <td class="px-4 py-3">
+                                        @if ($canComposeSms && $failedLogs > 0)
+                                            <button wire:click="retryCampaign({{ $campaign->id }})" wire:confirm="{{ __('messages.sms_confirm_retry', ['count' => number_format($failedLogs)]) }}" type="button" class="font-medium text-red-700 hover:text-red-900">
+                                                {{ __('messages.sms_retry_failed') }}
+                                            </button>
+                                        @else
+                                            <span class="text-gray-400">-</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">{{ __('messages.sms_no_campaigns') }}</td></tr>
+                                <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">{{ __('messages.sms_no_campaigns') }}</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -388,6 +432,53 @@
         @if ($section === 'reports')
             <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_reports') }}</h2>
+                <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('messages.sms_report_wallets') }}</p>
+                        <p class="mt-2 text-2xl font-semibold text-gray-950">{{ number_format($reportSummary['wallets_count']) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('messages.sms_report_balance') }}</p>
+                        <p class="mt-2 text-2xl font-semibold text-gray-950">{{ number_format($reportSummary['current_balance']) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('messages.sms_report_purchased') }}</p>
+                        <p class="mt-2 text-2xl font-semibold text-gray-950">{{ number_format($reportSummary['credits_purchased']) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('messages.sms_report_used') }}</p>
+                        <p class="mt-2 text-2xl font-semibold text-gray-950">{{ number_format($reportSummary['credits_used']) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('messages.sms_report_paid_revenue') }}</p>
+                        <p class="mt-2 text-xl font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format($reportSummary['paid_revenue']) }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-6 rounded-lg border border-gray-100 bg-gray-50 p-4">
+                    <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h3 class="font-semibold text-gray-950">{{ __('messages.sms_usage_by_wallet') }}</h3>
+                            <p class="text-sm text-gray-500">{{ __('messages.sms_pending_purchase_value') }}: {{ __('messages.currency_tzs') }} {{ number_format($reportSummary['pending_value']) }}</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 space-y-3">
+                        @forelse ($walletUsageSummary as $summary)
+                            <div>
+                                <div class="flex items-center justify-between gap-4 text-sm">
+                                    <span class="font-medium text-gray-800">{{ $summary['name'] }}</span>
+                                    <span class="text-gray-500">{{ number_format($summary['used']) }} / {{ number_format($summary['purchased']) }}</span>
+                                </div>
+                                <div class="mt-2 h-2 rounded-full bg-white">
+                                    <div class="h-2 rounded-full bg-red-700" style="width: {{ $summary['usage_percent'] }}%"></div>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-gray-600">{{ __('messages.sms_no_wallets') }}</p>
+                        @endforelse
+                    </div>
+                </div>
+
                 <div class="mt-4 overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
