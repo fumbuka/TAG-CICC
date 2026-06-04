@@ -46,10 +46,14 @@ class Index extends Component
 
     public string $compose_department_id = '';
 
+    public string $compose_member_id = '';
+
     /**
      * @var array<int, int|string>
      */
     public array $compose_member_ids = [];
+
+    public string $compose_manual_recipients = '';
 
     public string $compose_message = '';
 
@@ -521,9 +525,15 @@ class Index extends Component
             'wallets' => $visibleWallets->with(['department', 'user'])->orderBy('owner_type')->orderBy('name')->get(),
             'activeWallets' => $activeWallets,
             'departmentOptions' => $this->departmentOptions($scope),
-            'recipientMembers' => $this->recipientMemberOptions($scope),
+            'recipientMembers' => $this->recipientMemberOptions(),
             'targetOptions' => $targetOptions,
             'users' => User::query()->whereHas('member')->orderBy('name')->get(),
+            'myPurchases' => SmsPurchase::query()
+                ->with(['wallet.department', 'wallet.user', 'approvedBy'])
+                ->where('requested_by_user_id', Auth::id())
+                ->latest()
+                ->limit(15)
+                ->get(),
             'purchases' => SmsPurchase::query()
                 ->with(['wallet.department', 'wallet.user', 'requestedBy', 'approvedBy'])
                 ->when(! $this->canApproveSms(), fn ($query) => $query->whereIn('sms_wallet_id', $walletIds))
@@ -575,17 +585,19 @@ class Index extends Component
         return $this->validate([
             'compose_wallet_id' => ['required', 'integer', Rule::exists('sms_wallets', 'id')],
             'compose_title' => ['required', 'string', 'max:255'],
-            'compose_target_type' => ['required', Rule::in(['all_members', 'visitors', 'department_members', 'custom_members'])],
+            'compose_target_type' => ['required', Rule::in(['all_members', 'visitors', 'department_members', 'single_member', 'custom_members', 'manual_recipients'])],
             'compose_department_id' => ['nullable', 'required_if:compose_target_type,department_members', 'integer', Rule::exists('departments', 'id')],
+            'compose_member_id' => ['nullable', 'required_if:compose_target_type,single_member', 'integer', Rule::exists('members', 'id')],
             'compose_member_ids' => [Rule::requiredIf($this->compose_target_type === 'custom_members'), 'array', 'max:500'],
             'compose_member_ids.*' => ['integer', Rule::exists('members', 'id')],
+            'compose_manual_recipients' => ['nullable', 'required_if:compose_target_type,manual_recipients', 'string', 'max:10000'],
             'compose_message' => ['required', 'string', 'max:2000'],
         ]);
     }
 
     private function resetComposeForm(): void
     {
-        $this->reset(['compose_title', 'compose_message', 'compose_department_id', 'compose_member_ids']);
+        $this->reset(['compose_title', 'compose_message', 'compose_department_id', 'compose_member_id', 'compose_member_ids', 'compose_manual_recipients']);
         $this->compose_target_type = 'all_members';
         $this->resetErrorBag();
     }
@@ -641,7 +653,9 @@ class Index extends Component
 
         if ($scope->isChurchWide() || $scope->departmentIds() !== []) {
             $options['department_members'] = __('messages.sms_target_department_members');
+            $options['single_member'] = __('messages.sms_target_single_member');
             $options['custom_members'] = __('messages.sms_target_custom_members');
+            $options['manual_recipients'] = __('messages.sms_target_manual_recipients');
         }
 
         return $options;
@@ -656,9 +670,9 @@ class Index extends Component
             ->get();
     }
 
-    private function recipientMemberOptions(UserDataScope $scope)
+    private function recipientMemberOptions()
     {
-        return $scope->applyMemberScope(Member::query())
+        return Member::query()
             ->where('membership_status', 'active')
             ->whereNotNull('phone_number')
             ->orderBy('first_name')
@@ -711,7 +725,10 @@ class Index extends Component
             Auth::user(),
             $this->compose_target_type,
             $this->compose_department_id !== '' ? (int) $this->compose_department_id : null,
-            $this->compose_member_ids,
+            $this->compose_target_type === 'single_member'
+                ? [$this->compose_member_id]
+                : $this->compose_member_ids,
+            $this->compose_manual_recipients,
         );
     }
 

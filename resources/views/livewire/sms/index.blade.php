@@ -124,37 +124,74 @@
         @endif
 
         @if ($section === 'buy' && $canBuySms)
-            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                <form wire:submit="requestPurchase" class="grid gap-4 lg:grid-cols-4">
-                    <div class="lg:col-span-2">
-                        <x-input-label for="purchase_wallet_id" :value="__('messages.sms_wallet')" />
-                        <select wire:model="purchase_wallet_id" id="purchase_wallet_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
-                            @foreach ($activeWallets as $wallet)
-                                <option value="{{ $wallet->id }}">{{ $wallet->name }} ({{ number_format($wallet->balance) }})</option>
-                            @endforeach
-                        </select>
-                        <x-input-error :messages="$errors->get('purchase_wallet_id')" class="mt-2" />
+            <div class="space-y-6">
+                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                    <form wire:submit="requestPurchase" class="grid gap-4 lg:grid-cols-4">
+                        <div class="lg:col-span-2">
+                            <x-input-label for="purchase_wallet_id" :value="__('messages.sms_wallet')" />
+                            <select wire:model="purchase_wallet_id" id="purchase_wallet_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                @foreach ($activeWallets as $wallet)
+                                    <option value="{{ $wallet->id }}">{{ $wallet->name }} ({{ number_format($wallet->balance) }})</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('purchase_wallet_id')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="purchase_sms_quantity" :value="__('messages.sms_quantity')" />
+                            <x-text-input wire:model.live="purchase_sms_quantity" id="purchase_sms_quantity" type="number" min="1" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('purchase_sms_quantity')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label :value="__('messages.sms_total_amount')" />
+                            <p class="mt-2 text-lg font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format(((int) $purchase_sms_quantity) * $settings->price_per_sms) }}</p>
+                            <p class="text-xs text-gray-500">{{ number_format((int) $purchase_sms_quantity) }} x {{ __('messages.currency_tzs') }} {{ number_format($settings->price_per_sms) }}</p>
+                        </div>
+                        <div class="lg:col-span-4">
+                            <x-input-label for="purchase_notes" :value="__('messages.notes')" />
+                            <textarea wire:model="purchase_notes" id="purchase_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"></textarea>
+                            <x-input-error :messages="$errors->get('purchase_notes')" class="mt-2" />
+                        </div>
+                        <div class="lg:col-span-4 flex justify-end">
+                            <x-primary-button>{{ __('messages.sms_request_purchase') }}</x-primary-button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                    <div class="border-b border-gray-200 p-5">
+                        <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_my_purchase_requests') }}</h2>
+                        <p class="mt-1 text-sm text-gray-500">{{ __('messages.sms_my_purchase_requests_help') }}</p>
                     </div>
-                    <div>
-                        <x-input-label for="purchase_sms_quantity" :value="__('messages.sms_quantity')" />
-                        <x-text-input wire:model.live="purchase_sms_quantity" id="purchase_sms_quantity" type="number" min="1" class="mt-1 block w-full" />
-                        <x-input-error :messages="$errors->get('purchase_sms_quantity')" class="mt-2" />
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                                <tr>
+                                    <th class="px-4 py-3">{{ __('messages.sms_wallet') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.sms_quantity') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.sms_total_amount') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.status') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.date') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.approved_by') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 bg-white">
+                                @forelse ($myPurchases as $purchase)
+                                    <tr>
+                                        <td class="px-4 py-3 font-medium text-gray-950">{{ $purchase->wallet?->name }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ number_format($purchase->sms_quantity) }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ __('messages.currency_tzs') }} {{ number_format($purchase->total_amount) }}</td>
+                                        <td class="px-4 py-3"><span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">{{ __('messages.sms_purchase_status_'.$purchase->status) }}</span></td>
+                                        <td class="px-4 py-3 text-gray-600">{{ $purchase->created_at?->format('d M Y H:i') }}</td>
+                                        <td class="px-4 py-3 text-gray-600">{{ $purchase->approvedBy?->name ?? '-' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">{{ __('messages.sms_no_purchases') }}</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
-                    <div>
-                        <x-input-label :value="__('messages.sms_total_amount')" />
-                        <p class="mt-2 text-lg font-semibold text-gray-950">{{ __('messages.currency_tzs') }} {{ number_format(((int) $purchase_sms_quantity) * $settings->price_per_sms) }}</p>
-                        <p class="text-xs text-gray-500">{{ number_format((int) $purchase_sms_quantity) }} x {{ __('messages.currency_tzs') }} {{ number_format($settings->price_per_sms) }}</p>
-                    </div>
-                    <div class="lg:col-span-4">
-                        <x-input-label for="purchase_notes" :value="__('messages.notes')" />
-                        <textarea wire:model="purchase_notes" id="purchase_notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"></textarea>
-                        <x-input-error :messages="$errors->get('purchase_notes')" class="mt-2" />
-                    </div>
-                    <div class="lg:col-span-4 flex justify-end">
-                        <x-primary-button>{{ __('messages.sms_request_purchase') }}</x-primary-button>
-                    </div>
-                </form>
-            </section>
+                </section>
+            </div>
         @endif
 
         @if ($section === 'compose' && $canComposeSms)
@@ -197,6 +234,18 @@
                                     <x-input-error :messages="$errors->get('compose_department_id')" class="mt-2" />
                                 </div>
                             @endif
+                            @if ($compose_target_type === 'single_member')
+                                <div class="md:col-span-2">
+                                    <x-input-label for="compose_member_id" :value="__('messages.sms_single_recipient')" />
+                                    <select wire:model.live="compose_member_id" id="compose_member_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                        <option value="">{{ __('messages.sms_select_member') }}</option>
+                                        @foreach ($recipientMembers as $member)
+                                            <option value="{{ $member->id }}">{{ $member->fullName() }} · {{ $member->phone_number }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-input-error :messages="$errors->get('compose_member_id')" class="mt-2" />
+                                </div>
+                            @endif
                             @if ($compose_target_type === 'custom_members')
                                 <div class="md:col-span-2">
                                     <x-input-label for="compose_member_ids" :value="__('messages.sms_custom_recipients')" />
@@ -208,6 +257,14 @@
                                     <p class="mt-2 text-xs text-gray-500">{{ __('messages.sms_custom_recipients_help') }}</p>
                                     <x-input-error :messages="$errors->get('compose_member_ids')" class="mt-2" />
                                     <x-input-error :messages="$errors->get('compose_member_ids.*')" class="mt-2" />
+                                </div>
+                            @endif
+                            @if ($compose_target_type === 'manual_recipients')
+                                <div class="md:col-span-2">
+                                    <x-input-label for="compose_manual_recipients" :value="__('messages.sms_manual_recipients')" />
+                                    <textarea wire:model.live.debounce.400ms="compose_manual_recipients" id="compose_manual_recipients" rows="7" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500" placeholder="{{ __('messages.sms_manual_recipients_placeholder') }}"></textarea>
+                                    <p class="mt-2 text-xs text-gray-500">{{ __('messages.sms_manual_recipients_help') }}</p>
+                                    <x-input-error :messages="$errors->get('compose_manual_recipients')" class="mt-2" />
                                 </div>
                             @endif
                         </div>

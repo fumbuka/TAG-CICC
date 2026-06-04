@@ -191,10 +191,13 @@ class SmsManagementTest extends TestCase
         ]);
     }
 
-    public function test_department_user_can_send_to_custom_members_only_within_their_scope(): void
+    public function test_department_user_can_send_to_custom_members_inside_and_outside_their_department(): void
     {
         Http::fake([
-            '*' => Http::response(['messages' => [['message_id' => 'MSG-001']]], 200),
+            '*' => Http::response(['messages' => [
+                ['message_id' => 'MSG-001'],
+                ['message_id' => 'MSG-002'],
+            ]], 200),
         ]);
 
         config([
@@ -222,32 +225,169 @@ class SmsManagementTest extends TestCase
             ->set('compose_wallet_id', (string) $menWallet->id)
             ->set('compose_title', 'Tangazo maalum')
             ->set('compose_target_type', 'custom_members')
-            ->set('compose_member_ids', [$menMember->id])
+            ->set('compose_member_ids', [$menMember->id, $womenMember->id])
             ->set('compose_message', 'Ujumbe kwa mshirika aliyechaguliwa.')
             ->call('sendCampaign')
             ->assertHasNoErrors()
             ->assertDispatched('sms-campaign-sent');
 
-        $this->assertSame(9, $menWallet->refresh()->balance);
+        $this->assertSame(8, $menWallet->refresh()->balance);
         $this->assertDatabaseHas('sms_logs', [
             'member_id' => $menMember->id,
             'phone_number' => '255654000003',
             'status' => SmsLog::STATUS_SENT,
             'beem_message_id' => 'MSG-001',
         ]);
-        $this->assertDatabaseMissing('sms_logs', [
+        $this->assertDatabaseHas('sms_logs', [
             'member_id' => $womenMember->id,
+            'phone_number' => '255654000004',
+            'status' => SmsLog::STATUS_SENT,
+            'beem_message_id' => 'MSG-002',
+        ]);
+    }
+
+    public function test_department_user_can_send_sms_to_one_member(): void
+    {
+        Http::fake([
+            '*' => Http::response(['messages' => [['message_id' => 'ONE-001']]], 200),
+        ]);
+
+        config([
+            'sms.beem.api_key' => 'api-key',
+            'sms.beem.secret_key' => 'secret-key',
+            'sms.beem.sender_id' => 'TAGCICC',
+        ]);
+
+        $department = $this->department('Maendeleo');
+        $user = $this->departmentLeader($department);
+        $this->givePermissions($user, ['sms.view', 'sms.compose']);
+        $wallet = $this->departmentWallet($department, 3);
+        $member = $this->memberInDepartment($department, '0654000006');
+
+        SmsSetting::current()->update([
+            'sending_enabled' => true,
+            'sender_id' => 'TAGCICC',
         ]);
 
         Livewire::actingAs($user)
             ->test(SmsIndex::class, ['section' => 'compose'])
-            ->set('compose_wallet_id', (string) $menWallet->id)
-            ->set('compose_title', 'Nje ya scope')
-            ->set('compose_target_type', 'custom_members')
-            ->set('compose_member_ids', [$womenMember->id])
-            ->set('compose_message', 'Huu usitumwe.')
+            ->set('compose_wallet_id', (string) $wallet->id)
+            ->set('compose_title', 'Ujumbe binafsi')
+            ->set('compose_target_type', 'single_member')
+            ->set('compose_member_id', (string) $member->id)
+            ->set('compose_message', 'Mungu akubariki.')
             ->call('sendCampaign')
-            ->assertHasErrors(['compose_target_type']);
+            ->assertHasNoErrors()
+            ->assertDispatched('sms-campaign-sent');
+
+        $this->assertSame(2, $wallet->refresh()->balance);
+        $this->assertDatabaseHas('sms_campaigns', [
+            'sms_wallet_id' => $wallet->id,
+            'target_type' => 'single_member',
+            'recipients_count' => 1,
+            'total_credits_used' => 1,
+            'status' => SmsCampaign::STATUS_SENT,
+        ]);
+        $this->assertDatabaseHas('sms_logs', [
+            'member_id' => $member->id,
+            'phone_number' => '255654000006',
+            'status' => SmsLog::STATUS_SENT,
+            'beem_message_id' => 'ONE-001',
+        ]);
+    }
+
+    public function test_sms_buyer_can_track_their_purchase_request_status(): void
+    {
+        $user = User::factory()->create();
+        $this->givePermissions($user, ['sms.view', 'sms.buy']);
+        $wallet = SmsWallet::create([
+            'owner_type' => SmsWallet::OWNER_USER,
+            'user_id' => $user->id,
+            'name' => 'Personal SMS Wallet',
+            'credits_purchased' => 0,
+            'credits_used' => 0,
+            'balance' => 0,
+            'is_active' => true,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'buy'])
+            ->set('purchase_wallet_id', (string) $wallet->id)
+            ->set('purchase_sms_quantity', '250')
+            ->set('purchase_notes', 'Nahitaji kutuma matangazo.')
+            ->call('requestPurchase')
+            ->assertHasNoErrors()
+            ->assertDispatched('sms-purchase-requested')
+            ->assertSee(__('messages.sms_my_purchase_requests'))
+            ->assertSee(__('messages.sms_purchase_status_pending'))
+            ->assertSee('Personal SMS Wallet');
+
+        $this->assertDatabaseHas('sms_purchases', [
+            'sms_wallet_id' => $wallet->id,
+            'requested_by_user_id' => $user->id,
+            'sms_quantity' => 250,
+            'status' => SmsPurchase::STATUS_PENDING,
+        ]);
+    }
+
+    public function test_department_user_can_send_sms_to_manual_numbers_outside_database(): void
+    {
+        Http::fake([
+            '*' => Http::response(['messages' => [
+                ['message_id' => 'EXT-001'],
+                ['message_id' => 'EXT-002'],
+            ]], 200),
+        ]);
+
+        config([
+            'sms.beem.api_key' => 'api-key',
+            'sms.beem.secret_key' => 'secret-key',
+            'sms.beem.sender_id' => 'TAGCICC',
+        ]);
+
+        $department = $this->department('Uinjilishaji');
+        $user = $this->departmentLeader($department);
+        $this->givePermissions($user, ['sms.view', 'sms.compose']);
+        $wallet = $this->departmentWallet($department, 5);
+
+        SmsSetting::current()->update([
+            'sending_enabled' => true,
+            'sender_id' => 'TAGCICC',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'compose'])
+            ->set('compose_wallet_id', (string) $wallet->id)
+            ->set('compose_title', 'Wageni wa mkutano')
+            ->set('compose_target_type', 'manual_recipients')
+            ->set('compose_manual_recipients', "Mgeni Mmoja, 0654000007\n0755000008")
+            ->set('compose_message', 'Karibu kwenye mkutano.')
+            ->call('sendCampaign')
+            ->assertHasNoErrors()
+            ->assertDispatched('sms-campaign-sent');
+
+        $this->assertSame(3, $wallet->refresh()->balance);
+        $this->assertDatabaseHas('sms_campaigns', [
+            'sms_wallet_id' => $wallet->id,
+            'target_type' => 'manual_recipients',
+            'recipients_count' => 2,
+            'total_credits_used' => 2,
+            'status' => SmsCampaign::STATUS_SENT,
+        ]);
+        $this->assertDatabaseHas('sms_logs', [
+            'member_id' => null,
+            'recipient_name' => 'Mgeni Mmoja',
+            'phone_number' => '255654000007',
+            'status' => SmsLog::STATUS_SENT,
+            'beem_message_id' => 'EXT-001',
+        ]);
+        $this->assertDatabaseHas('sms_logs', [
+            'member_id' => null,
+            'recipient_name' => __('messages.sms_manual_recipient'),
+            'phone_number' => '255755000008',
+            'status' => SmsLog::STATUS_SENT,
+            'beem_message_id' => 'EXT-002',
+        ]);
     }
 
     public function test_failed_campaign_can_be_retried_and_deducts_only_retry_credits(): void

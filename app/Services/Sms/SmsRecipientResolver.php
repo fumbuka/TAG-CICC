@@ -15,7 +15,7 @@ class SmsRecipientResolver
     /**
      * @return Collection<int, array{name: string, phone_number: string, member_id?: int|null, visitor_id?: int|null}>
      */
-    public function resolve(User $user, string $targetType, ?int $departmentId = null, array $memberIds = []): Collection
+    public function resolve(User $user, string $targetType, ?int $departmentId = null, array $memberIds = [], string $manualRecipients = ''): Collection
     {
         $scope = UserDataScope::for($user);
 
@@ -23,7 +23,9 @@ class SmsRecipientResolver
             'all_members' => $this->resolveAllMembers($user, $scope),
             'visitors' => $this->resolveVisitors($user, $scope),
             'department_members' => $this->resolveDepartmentMembers($scope, $departmentId),
-            'custom_members' => $this->resolveCustomMembers($scope, $memberIds),
+            'single_member' => $this->resolveCustomMembers($memberIds),
+            'custom_members' => $this->resolveCustomMembers($memberIds),
+            'manual_recipients' => $this->resolveManualRecipients($manualRecipients),
             default => collect(),
         };
     }
@@ -90,7 +92,7 @@ class SmsRecipientResolver
      * @param  array<int, int|string>  $memberIds
      * @return Collection<int, array{name: string, phone_number: string, member_id: int}>
      */
-    private function resolveCustomMembers(UserDataScope $scope, array $memberIds): Collection
+    private function resolveCustomMembers(array $memberIds): Collection
     {
         $memberIds = collect($memberIds)
             ->map(fn (int|string $id): int => (int) $id)
@@ -102,19 +104,53 @@ class SmsRecipientResolver
             throw new RuntimeException(__('messages.sms_custom_recipients_required'));
         }
 
-        $accessibleMembersQuery = $scope->applyMemberScope(Member::query())
+        $accessibleMembersQuery = Member::query()
             ->whereKey($memberIds->all())
             ->where('membership_status', 'active');
-
-        if ((clone $accessibleMembersQuery)->count() !== $memberIds->count()) {
-            throw new RuntimeException(__('messages.sms_recipient_scope_denied'));
-        }
 
         return $this->memberRows($accessibleMembersQuery
             ->whereNotNull('phone_number')
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get());
+    }
+
+    /**
+     * @return Collection<int, array{name: string, phone_number: string, member_id: null, visitor_id: null}>
+     */
+    private function resolveManualRecipients(string $manualRecipients): Collection
+    {
+        $rows = collect(preg_split('/\R+/', trim($manualRecipients)) ?: [])
+            ->map(fn (string $line): string => trim($line))
+            ->filter()
+            ->map(function (string $line): ?array {
+                preg_match('/(\+?255\d{9}|0\d{9})/', $line, $matches);
+
+                $rawPhone = $matches[1] ?? $line;
+                $phone = $this->normalizePhone($rawPhone);
+
+                if ($phone === '') {
+                    return null;
+                }
+
+                $name = trim(str_replace($rawPhone, '', $line), " \t\n\r\0\x0B,-:");
+
+                return [
+                    'name' => $name !== '' ? $name : __('messages.sms_manual_recipient'),
+                    'phone_number' => $phone,
+                    'member_id' => null,
+                    'visitor_id' => null,
+                ];
+            })
+            ->filter()
+            ->unique('phone_number')
+            ->values();
+
+        if ($rows->isEmpty()) {
+            throw new RuntimeException(__('messages.sms_manual_recipients_required'));
+        }
+
+        return $rows;
     }
 
     /**
