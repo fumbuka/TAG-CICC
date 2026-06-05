@@ -5,6 +5,7 @@ namespace App\Livewire\Reports;
 use App\Models\CalendarEvent;
 use App\Models\DepartmentEventReport;
 use App\Services\DepartmentEventReportPdfService;
+use App\Services\OperationalModuleReportPdfService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -182,6 +183,22 @@ class Index extends Component
             ->deleteFileAfterSend();
     }
 
+    public function downloadModuleReport(string $module): BinaryFileResponse
+    {
+        $user = Auth::user();
+        $reportService = app(OperationalModuleReportPdfService::class);
+
+        abort_unless($user && $reportService->canDownloadModule($module, $user), 403);
+
+        $download = $reportService->create($module, $user);
+
+        return response()
+            ->download($download['path'], $download['filename'], [
+                'Content-Type' => OperationalModuleReportPdfService::CONTENT_TYPE,
+            ])
+            ->deleteFileAfterSend();
+    }
+
     public function render(): View
     {
         $plannedEventsQuery = $this->scopedDepartmentEventsQuery();
@@ -205,6 +222,9 @@ class Index extends Component
                 ->get(),
             'canSubmitReports' => $this->canSubmitReports(),
             'canApproveReports' => $this->canApproveReports(),
+            'moduleReports' => Auth::user()
+                ? app(OperationalModuleReportPdfService::class)->availableModules(Auth::user())
+                : [],
             'submissionDepartmentIds' => $this->submissionDepartmentIds,
         ]);
     }

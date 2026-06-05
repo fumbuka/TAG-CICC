@@ -10,7 +10,9 @@ use App\Models\LeadershipTitle;
 use App\Models\Member;
 use App\Models\MemberLeadershipAssignment;
 use App\Models\User;
+use App\Models\Zone;
 use App\Services\DepartmentEventReportPdfService;
+use App\Services\OperationalModuleReportPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -155,6 +157,64 @@ class ReportsManagementTest extends TestCase
                 'tag-cicc-event-report-'.$report->id.'-20260530-121500.pdf',
                 contentType: DepartmentEventReportPdfService::CONTENT_TYPE,
             );
+    }
+
+    public function test_operational_module_report_can_be_downloaded_as_pdf(): void
+    {
+        $this->travelTo('2026-05-30 12:15:00');
+
+        $user = User::factory()->create();
+
+        collect(['reports.view', 'users.manage'])->each(fn (string $permission) => Permission::firstOrCreate([
+            'name' => $permission,
+            'guard_name' => 'web',
+        ]));
+        $user->givePermissionTo(['reports.view', 'users.manage']);
+
+        $zone = Zone::create([
+            'name' => 'Changombe',
+            'slug' => 'changombe',
+        ]);
+        $department = Department::create([
+            'name' => 'Wababa',
+            'slug' => 'wababa',
+        ]);
+
+        $member = Member::create([
+            'user_id' => $user->id,
+            'zone_id' => $zone->id,
+            'first_name' => 'Adam',
+            'last_name' => 'Fumbuka',
+            'gender' => 'male',
+            'date_of_birth' => '1980-01-01',
+            'membership_status' => 'active',
+        ]);
+        $member->departments()->attach($department->id, ['is_active' => true]);
+
+        Livewire::actingAs($user)
+            ->test(ReportsIndex::class)
+            ->assertSee(__('messages.module_reports'))
+            ->call('downloadModuleReport', 'members')
+            ->assertFileDownloaded(
+                'tag-cicc-members-operational-report-20260530-121500.pdf',
+                contentType: OperationalModuleReportPdfService::CONTENT_TYPE,
+            );
+    }
+
+    public function test_finance_module_report_requires_finance_permission(): void
+    {
+        $user = User::factory()->create();
+
+        Permission::firstOrCreate([
+            'name' => 'reports.view',
+            'guard_name' => 'web',
+        ]);
+        $user->givePermissionTo('reports.view');
+
+        Livewire::actingAs($user)
+            ->test(ReportsIndex::class)
+            ->call('downloadModuleReport', 'finance')
+            ->assertForbidden();
     }
 
     /**

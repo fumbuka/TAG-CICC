@@ -43,6 +43,39 @@
             </section>
         </div>
 
+        @if ($moduleReports !== [])
+            <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.module_reports') }}</h2>
+                        <p class="mt-1 text-sm text-gray-600">{{ __('messages.module_reports_help') }}</p>
+                    </div>
+                </div>
+
+                <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    @foreach ($moduleReports as $moduleReport)
+                        <article class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="font-semibold text-gray-950">{{ $moduleReport['label'] }}</h3>
+                                    <p class="mt-1 text-sm leading-6 text-gray-600">{{ $moduleReport['description'] }}</p>
+                                </div>
+                            </div>
+                            <button
+                                wire:click="downloadModuleReport('{{ $moduleReport['key'] }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="downloadModuleReport('{{ $moduleReport['key'] }}')"
+                                type="button"
+                                class="mt-4 inline-flex items-center justify-center rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-800 disabled:cursor-wait disabled:opacity-60"
+                            >
+                                {{ __('messages.download_pdf') }}
+                            </button>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+
         @if ($canSubmitReports)
             <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-gray-950">
