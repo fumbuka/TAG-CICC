@@ -37,6 +37,7 @@ class SmsRecipientResolver
         }
 
         return $this->memberRows(Member::query()
+            ->with(['departments', 'zone'])
             ->where('membership_status', 'active')
             ->whereNotNull('phone_number')
             ->orderBy('first_name')
@@ -56,8 +57,13 @@ class SmsRecipientResolver
             ->get()
             ->map(fn (Visitor $visitor): array => [
                 'name' => $visitor->full_name,
+                'first_name' => strtok((string) $visitor->full_name, ' ') ?: $visitor->full_name,
+                'last_name' => '',
                 'phone_number' => $this->normalizePhone($visitor->phone_number),
+                'member_id' => null,
                 'visitor_id' => $visitor->id,
+                'department_names' => '',
+                'zone_name' => '',
             ])
             ->filter(fn (array $row): bool => $row['phone_number'] !== '')
             ->unique('phone_number')
@@ -77,6 +83,7 @@ class SmsRecipientResolver
         Department::query()->findOrFail($departmentId);
 
         return $this->memberRows(Member::query()
+            ->with(['departments', 'zone'])
             ->where('membership_status', 'active')
             ->whereNotNull('phone_number')
             ->whereHas('departments', function ($query) use ($departmentId): void {
@@ -105,6 +112,7 @@ class SmsRecipientResolver
         }
 
         $accessibleMembersQuery = Member::query()
+            ->with(['departments', 'zone'])
             ->whereKey($memberIds->all())
             ->where('membership_status', 'active');
 
@@ -137,9 +145,13 @@ class SmsRecipientResolver
 
                 return [
                     'name' => $name !== '' ? $name : __('messages.sms_manual_recipient'),
+                    'first_name' => $name !== '' ? (strtok($name, ' ') ?: $name) : '',
+                    'last_name' => '',
                     'phone_number' => $phone,
                     'member_id' => null,
                     'visitor_id' => null,
+                    'department_names' => '',
+                    'zone_name' => '',
                 ];
             })
             ->filter()
@@ -162,8 +174,16 @@ class SmsRecipientResolver
         return $members
             ->map(fn (Member $member): array => [
                 'name' => $member->fullName(),
+                'first_name' => $member->first_name,
+                'last_name' => $member->last_name,
                 'phone_number' => $this->normalizePhone($member->phone_number),
                 'member_id' => $member->id,
+                'visitor_id' => null,
+                'department_names' => $member->departments
+                    ->where('pivot.is_active', true)
+                    ->pluck('name')
+                    ->join(', '),
+                'zone_name' => $member->zone?->name ?? '',
             ])
             ->filter(fn (array $row): bool => $row['phone_number'] !== '')
             ->unique('phone_number')

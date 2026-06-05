@@ -1,0 +1,24 @@
+{
+    "name": "TAG-CICC Church Management System",
+    "short_name": "TAG-CICC",
+    "description": "TAG-CICC church management system for members, services, finance, calendar, reports, and SMS.",
+    "start_url": "/dashboard",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#b91c1c",
+    "icons": [
+        {
+            "src": "/images/tag-cicc-icon.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/images/tag-cicc-logo.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

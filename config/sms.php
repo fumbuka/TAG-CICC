@@ -6,5 +6,6 @@ return [
         'api_key' => env('BEEM_SMS_API_KEY'),
         'secret_key' => env('BEEM_SMS_SECRET_KEY'),
         'sender_id' => env('BEEM_SMS_SENDER_ID'),
+        'callback_token' => env('BEEM_SMS_CALLBACK_TOKEN'),
     ],
 ];

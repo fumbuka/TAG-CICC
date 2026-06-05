@@ -9,14 +9,17 @@ use App\Models\SmsCampaign;
 use App\Models\SmsLog;
 use App\Models\SmsPurchase;
 use App\Models\SmsSetting;
+use App\Models\SmsTemplate;
 use App\Models\SmsTransaction;
 use App\Models\SmsWallet;
 use App\Models\User;
-use App\Services\Sms\BeemSmsService;
+use App\Services\Sms\SmsCampaignDispatcher;
 use App\Services\Sms\SmsMessageCounter;
 use App\Services\Sms\SmsRecipientResolver;
 use App\Services\Sms\SmsWalletService;
+use App\Services\OperationalModuleReportPdfService;
 use App\Support\UserDataScope;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +27,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 #[Layout('layouts.app')]
 class Index extends Component
@@ -56,6 +60,22 @@ class Index extends Component
     public string $compose_manual_recipients = '';
 
     public string $compose_message = '';
+
+    public string $compose_template_id = '';
+
+    public bool $compose_personalization_enabled = false;
+
+    public string $compose_send_mode = 'now';
+
+    public string $compose_scheduled_at = '';
+
+    public ?int $editing_template_id = null;
+
+    public string $template_title = '';
+
+    public string $template_message = '';
+
+    public bool $template_is_active = true;
 
     public string $wallet_owner_type = SmsWallet::OWNER_DEPARTMENT;
 
@@ -258,15 +278,85 @@ class Index extends Component
         $this->dispatch('sms-settings-updated');
     }
 
+    public function applyTemplate(): void
+    {
+        abort_unless($this->canComposeSms(), 403);
+
+        if ($this->compose_template_id === '') {
+            return;
+        }
+
+        $template = SmsTemplate::query()
+            ->where('is_active', true)
+            ->findOrFail((int) $this->compose_template_id);
+
+        $this->compose_message = $template->message;
+    }
+
+    public function saveTemplate(): void
+    {
+        abort_unless($this->canManageSmsTemplates(), 403);
+
+        $validated = $this->validate([
+            'template_title' => ['required', 'string', 'max:255'],
+            'template_message' => ['required', 'string', 'max:2000'],
+            'template_is_active' => ['boolean'],
+        ]);
+
+        $attributes = [
+            'created_by_user_id' => Auth::id(),
+            'title' => $validated['template_title'],
+            'message' => $validated['template_message'],
+            'is_active' => $validated['template_is_active'],
+        ];
+
+        if ($this->editing_template_id) {
+            SmsTemplate::findOrFail($this->editing_template_id)->update($attributes);
+        } else {
+            SmsTemplate::create($attributes);
+        }
+
+        $this->resetTemplateForm();
+        $this->dispatch('sms-template-saved');
+    }
+
+    public function editTemplate(int $templateId): void
+    {
+        abort_unless($this->canManageSmsTemplates(), 403);
+
+        $template = SmsTemplate::findOrFail($templateId);
+
+        $this->editing_template_id = $template->id;
+        $this->template_title = $template->title;
+        $this->template_message = $template->message;
+        $this->template_is_active = $template->is_active;
+    }
+
+    public function deleteTemplate(int $templateId): void
+    {
+        abort_unless($this->canManageSmsTemplates(), 403);
+
+        SmsTemplate::findOrFail($templateId)->delete();
+
+        $this->resetTemplateForm();
+        $this->dispatch('sms-template-deleted');
+    }
+
+    public function cancelTemplateEdit(): void
+    {
+        $this->resetTemplateForm();
+    }
+
     public function previewCampaign(): void
     {
         abort_unless($this->canComposeSms(), 403);
 
         $resolver = app(SmsRecipientResolver::class);
         $counter = app(SmsMessageCounter::class);
+        $dispatcher = app(SmsCampaignDispatcher::class);
         $this->validateCompose();
         try {
-            $this->campaignPreview($resolver, $counter);
+            $this->campaignPreview($resolver, $counter, $dispatcher);
         } catch (RuntimeException $exception) {
             $this->addError('compose_target_type', $exception->getMessage());
 
@@ -281,14 +371,11 @@ class Index extends Component
         abort_unless($this->canComposeSms(), 403);
 
         $resolver = app(SmsRecipientResolver::class);
-        $counter = app(SmsMessageCounter::class);
-        $walletService = app(SmsWalletService::class);
-        $beemSmsService = app(BeemSmsService::class);
+        $dispatcher = app(SmsCampaignDispatcher::class);
         $validated = $this->validateCompose();
         $wallet = SmsWallet::findOrFail($validated['compose_wallet_id']);
         abort_unless($this->canUseWallet($wallet), 403);
 
-        $settings = SmsSetting::current();
         try {
             $recipients = $this->resolveRecipients($resolver);
         } catch (RuntimeException $exception) {
@@ -296,8 +383,13 @@ class Index extends Component
 
             return;
         }
-        $parts = $counter->parts($validated['compose_message']);
-        $requiredCredits = $recipients->count() * $parts;
+
+        $preview = $dispatcher->estimate(
+            $validated['compose_message'],
+            $recipients,
+            (bool) $validated['compose_personalization_enabled'],
+        );
+        $requiredCredits = $preview['credits_required'];
 
         if ($recipients->isEmpty()) {
             $this->addError('compose_target_type', __('messages.sms_no_recipients'));
@@ -314,91 +406,43 @@ class Index extends Component
             return;
         }
 
-        if (! $settings->sending_enabled) {
+        $scheduledAt = $this->scheduledAtFromInput($validated['compose_send_mode'], $validated['compose_scheduled_at'] ?? null);
+        $settings = SmsSetting::current();
+
+        if (! $scheduledAt && ! $settings->sending_enabled) {
             $this->addError('compose_wallet_id', __('messages.sms_sending_disabled'));
 
             return;
         }
 
-        $campaign = SmsCampaign::create([
-            'sms_wallet_id' => $wallet->id,
-            'sent_by_user_id' => Auth::id(),
-            'department_id' => $validated['compose_target_type'] === 'department_members' ? (int) $validated['compose_department_id'] : null,
-            'title' => $validated['compose_title'],
-            'target_type' => $validated['compose_target_type'],
-            'message' => $validated['compose_message'],
-            'recipients_count' => $recipients->count(),
-            'sms_parts' => $parts,
-            'total_credits_used' => 0,
-            'status' => SmsCampaign::STATUS_PENDING,
-        ]);
-
         try {
-            $providerResponse = $beemSmsService->send($validated['compose_message'], $recipients->all(), $settings->sender_id);
-
-            DB::transaction(function () use ($campaign, $recipients, $validated, $providerResponse, $walletService, $wallet, $requiredCredits): void {
-                $walletService->deductCredits(
-                    $wallet,
-                    $requiredCredits,
-                    __('messages.sms_campaign_ledger_description', ['campaign' => $campaign->title]),
-                    Auth::user(),
-                );
-
-                foreach ($recipients->values() as $index => $recipient) {
-                    SmsLog::create([
-                        'sms_campaign_id' => $campaign->id,
-                        'member_id' => $recipient['member_id'] ?? null,
-                        'visitor_id' => $recipient['visitor_id'] ?? null,
-                        'recipient_name' => $recipient['name'],
-                        'phone_number' => $recipient['phone_number'],
-                        'message' => $validated['compose_message'],
-                        'status' => SmsLog::STATUS_SENT,
-                        'beem_message_id' => $this->messageIdFromProviderResponse($providerResponse, $index),
-                        'provider_response' => $providerResponse,
-                    ]);
-                }
-
-                $campaign->update([
-                    'status' => SmsCampaign::STATUS_SENT,
-                    'total_credits_used' => $requiredCredits,
-                    'beem_response' => $providerResponse,
-                    'sent_at' => now(),
-                ]);
-            });
+            $campaign = $dispatcher->create(
+                wallet: $wallet,
+                user: Auth::user(),
+                title: $validated['compose_title'],
+                targetType: $validated['compose_target_type'],
+                message: $validated['compose_message'],
+                recipients: $recipients,
+                departmentId: $validated['compose_target_type'] === 'department_members' ? (int) $validated['compose_department_id'] : null,
+                templateId: $validated['compose_template_id'] ? (int) $validated['compose_template_id'] : null,
+                personalize: (bool) $validated['compose_personalization_enabled'],
+                scheduledAt: $scheduledAt,
+            );
         } catch (RuntimeException $exception) {
-            $campaign->update([
-                'status' => SmsCampaign::STATUS_FAILED,
-                'beem_response' => ['error' => $exception->getMessage()],
-            ]);
-
-            foreach ($recipients as $recipient) {
-                SmsLog::create([
-                    'sms_campaign_id' => $campaign->id,
-                    'member_id' => $recipient['member_id'] ?? null,
-                    'visitor_id' => $recipient['visitor_id'] ?? null,
-                    'recipient_name' => $recipient['name'],
-                    'phone_number' => $recipient['phone_number'],
-                    'message' => $validated['compose_message'],
-                    'status' => SmsLog::STATUS_FAILED,
-                    'error_message' => $exception->getMessage(),
-                ]);
-            }
-
             $this->addError('compose_wallet_id', $exception->getMessage());
 
             return;
         }
 
         $this->resetComposeForm();
-        $this->dispatch('sms-campaign-sent');
+        $this->dispatch($campaign->status === SmsCampaign::STATUS_SCHEDULED ? 'sms-campaign-scheduled' : 'sms-campaign-sent');
     }
 
     public function retryCampaign(int $campaignId): void
     {
         abort_unless($this->canComposeSms(), 403);
 
-        $walletService = app(SmsWalletService::class);
-        $beemSmsService = app(BeemSmsService::class);
+        $dispatcher = app(SmsCampaignDispatcher::class);
         $campaign = SmsCampaign::query()
             ->with(['wallet', 'logs' => fn ($query) => $query->where('status', SmsLog::STATUS_FAILED)])
             ->findOrFail($campaignId);
@@ -410,7 +454,8 @@ class Index extends Component
             return;
         }
 
-        $requiredCredits = $failedLogs->count() * max((int) $campaign->sms_parts, 1);
+        $counter = app(SmsMessageCounter::class);
+        $requiredCredits = (int) $failedLogs->sum(fn (SmsLog $log): int => $counter->parts($log->message));
         $wallet = $campaign->wallet->refresh();
         $settings = SmsSetting::current();
 
@@ -429,56 +474,28 @@ class Index extends Component
             return;
         }
 
-        $recipients = $failedLogs->values()->map(fn (SmsLog $log): array => [
-            'name' => $log->recipient_name,
-            'phone_number' => $log->phone_number,
-            'member_id' => $log->member_id,
-            'visitor_id' => $log->visitor_id,
-        ]);
-
         try {
-            $providerResponse = $beemSmsService->send($campaign->message, $recipients->all(), $settings->sender_id);
-
-            DB::transaction(function () use ($campaign, $failedLogs, $providerResponse, $walletService, $wallet, $requiredCredits): void {
-                $walletService->deductCredits(
-                    $wallet,
-                    $requiredCredits,
-                    __('messages.sms_campaign_retry_ledger_description', ['campaign' => $campaign->title]),
-                    Auth::user(),
-                );
-
-                foreach ($failedLogs->values() as $index => $log) {
-                    $log->update([
-                        'status' => SmsLog::STATUS_SENT,
-                        'beem_message_id' => $this->messageIdFromProviderResponse($providerResponse, $index),
-                        'error_message' => null,
-                        'provider_response' => $providerResponse,
-                    ]);
-                }
-
-                $campaign->update([
-                    'total_credits_used' => (int) $campaign->total_credits_used + $requiredCredits,
-                    'status' => SmsCampaign::STATUS_SENT,
-                    'beem_response' => $providerResponse,
-                    'sent_at' => now(),
-                ]);
-            });
+            $dispatcher->retryFailedCampaign($campaign, Auth::user());
         } catch (RuntimeException $exception) {
-            $campaign->update([
-                'status' => SmsCampaign::STATUS_FAILED,
-                'beem_response' => ['error' => $exception->getMessage()],
-            ]);
-
-            $failedLogs->each(fn (SmsLog $log) => $log->update([
-                'error_message' => $exception->getMessage(),
-            ]));
-
             $this->addError('compose_wallet_id', $exception->getMessage());
 
             return;
         }
 
         $this->dispatch('sms-campaign-retried');
+    }
+
+    public function downloadSmsReport(): BinaryFileResponse
+    {
+        abort_unless($this->canViewSmsReports(), 403);
+
+        $download = app(OperationalModuleReportPdfService::class)->create('sms', Auth::user());
+
+        return response()
+            ->download($download['path'], $download['filename'], [
+                'Content-Type' => OperationalModuleReportPdfService::CONTENT_TYPE,
+            ])
+            ->deleteFileAfterSend();
     }
 
     public function render(): View
@@ -488,6 +505,7 @@ class Index extends Component
         $walletService = app(SmsWalletService::class);
         $resolver = app(SmsRecipientResolver::class);
         $counter = app(SmsMessageCounter::class);
+        $dispatcher = app(SmsCampaignDispatcher::class);
         $targetOptions = $this->targetOptions($scope);
 
         if ($this->canManageSmsWallets()) {
@@ -526,6 +544,8 @@ class Index extends Component
             'activeWallets' => $activeWallets,
             'departmentOptions' => $this->departmentOptions($scope),
             'recipientMembers' => $this->recipientMemberOptions(),
+            'smsTemplates' => SmsTemplate::query()->where('is_active', true)->orderBy('title')->get(),
+            'allSmsTemplates' => SmsTemplate::query()->with('createdBy')->latest()->get(),
             'targetOptions' => $targetOptions,
             'users' => User::query()->whereHas('member')->orderBy('name')->get(),
             'myPurchases' => SmsPurchase::query()
@@ -541,9 +561,16 @@ class Index extends Component
                 ->limit(25)
                 ->get(),
             'campaigns' => SmsCampaign::query()
-                ->with(['wallet.department', 'wallet.user', 'sentBy', 'department', 'logs'])
+                ->with(['wallet.department', 'wallet.user', 'sentBy', 'scheduledBy', 'department', 'template', 'logs'])
                 ->whereIn('sms_wallet_id', $walletIds)
                 ->latest()
+                ->limit(25)
+                ->get(),
+            'scheduledCampaigns' => SmsCampaign::query()
+                ->with(['wallet.department', 'wallet.user', 'sentBy', 'scheduledBy', 'department', 'template', 'logs'])
+                ->whereIn('sms_wallet_id', $walletIds)
+                ->where('status', SmsCampaign::STATUS_SCHEDULED)
+                ->orderBy('scheduled_at')
                 ->limit(25)
                 ->get(),
             'transactions' => SmsTransaction::query()
@@ -558,11 +585,12 @@ class Index extends Component
                 ->count(),
             'reportSummary' => $this->reportSummary($walletIds, $activeWallets),
             'walletUsageSummary' => $this->walletUsageSummary($activeWallets),
-            'preview' => $this->composePreview($resolver, $counter),
+            'preview' => $this->composePreview($resolver, $counter, $dispatcher),
             'canBuySms' => $this->canBuySms(),
             'canComposeSms' => $this->canComposeSms(),
             'canApproveSms' => $this->canApproveSms(),
             'canManageSmsWallets' => $this->canManageSmsWallets(),
+            'canManageSmsTemplates' => $this->canManageSmsTemplates(),
             'canManageSmsSettings' => $this->canManageSmsSettings(),
         ]);
     }
@@ -592,14 +620,36 @@ class Index extends Component
             'compose_member_ids.*' => ['integer', Rule::exists('members', 'id')],
             'compose_manual_recipients' => ['nullable', 'required_if:compose_target_type,manual_recipients', 'string', 'max:10000'],
             'compose_message' => ['required', 'string', 'max:2000'],
+            'compose_template_id' => ['nullable', 'integer', Rule::exists('sms_templates', 'id')],
+            'compose_personalization_enabled' => ['boolean'],
+            'compose_send_mode' => ['required', Rule::in(['now', 'scheduled'])],
+            'compose_scheduled_at' => ['nullable', 'required_if:compose_send_mode,scheduled', 'date', 'after:now'],
         ]);
     }
 
     private function resetComposeForm(): void
     {
-        $this->reset(['compose_title', 'compose_message', 'compose_department_id', 'compose_member_id', 'compose_member_ids', 'compose_manual_recipients']);
+        $this->reset(['compose_title', 'compose_message', 'compose_department_id', 'compose_member_id', 'compose_member_ids', 'compose_manual_recipients', 'compose_template_id', 'compose_scheduled_at']);
         $this->compose_target_type = 'all_members';
+        $this->compose_personalization_enabled = false;
+        $this->compose_send_mode = 'now';
         $this->resetErrorBag();
+    }
+
+    private function resetTemplateForm(): void
+    {
+        $this->reset(['editing_template_id', 'template_title', 'template_message']);
+        $this->template_is_active = true;
+        $this->resetErrorBag();
+    }
+
+    private function scheduledAtFromInput(string $sendMode, ?string $scheduledAt): ?Carbon
+    {
+        if ($sendMode !== 'scheduled' || ! $scheduledAt) {
+            return null;
+        }
+
+        return Carbon::parse($scheduledAt, config('app.timezone'));
     }
 
     private function authorizeWalletAccess(SmsWallet $wallet): void
@@ -684,10 +734,10 @@ class Index extends Component
     /**
      * @return array{recipients_count: int, sms_parts: int, credits_required: int, balance_before: int, balance_after: int}
      */
-    private function composePreview(SmsRecipientResolver $resolver, SmsMessageCounter $counter): array
+    private function composePreview(SmsRecipientResolver $resolver, SmsMessageCounter $counter, SmsCampaignDispatcher $dispatcher): array
     {
         try {
-            return $this->campaignPreview($resolver, $counter);
+            return $this->campaignPreview($resolver, $counter, $dispatcher);
         } catch (RuntimeException) {
             return [
                 'recipients_count' => 0,
@@ -702,20 +752,19 @@ class Index extends Component
     /**
      * @return array{recipients_count: int, sms_parts: int, credits_required: int, balance_before: int, balance_after: int}
      */
-    private function campaignPreview(SmsRecipientResolver $resolver, SmsMessageCounter $counter): array
+    private function campaignPreview(SmsRecipientResolver $resolver, SmsMessageCounter $counter, SmsCampaignDispatcher $dispatcher): array
     {
         $wallet = SmsWallet::find((int) $this->compose_wallet_id);
         $recipients = $this->resolveRecipients($resolver);
-        $parts = $counter->parts($this->compose_message);
-        $credits = $recipients->count() * $parts;
+        $estimate = $dispatcher->estimate($this->compose_message, $recipients, $this->compose_personalization_enabled);
         $balance = (int) ($wallet?->balance ?? 0);
 
         return [
-            'recipients_count' => $recipients->count(),
-            'sms_parts' => $parts,
-            'credits_required' => $credits,
+            'recipients_count' => $estimate['recipients_count'],
+            'sms_parts' => $estimate['sms_parts'],
+            'credits_required' => $estimate['credits_required'],
             'balance_before' => $balance,
-            'balance_after' => max($balance - $credits, 0),
+            'balance_after' => max($balance - $estimate['credits_required'], 0),
         ];
     }
 
@@ -805,6 +854,8 @@ class Index extends Component
             'wallets' => $this->canManageSmsWallets(),
             'approvals' => $this->canApproveSms(),
             'reports' => $this->canViewSmsReports(),
+            'templates' => $this->canManageSmsTemplates(),
+            'scheduled' => $this->canViewScheduledSms(),
             'settings' => $this->canManageSmsSettings(),
             default => $this->canViewSms(),
         };
@@ -840,6 +891,18 @@ class Index extends Component
         return $this->permissionsAreUnseeded() || (Auth::user()?->can('sms.reports') ?? false);
     }
 
+    private function canManageSmsTemplates(): bool
+    {
+        return $this->permissionsAreUnseeded() || (Auth::user()?->can('sms.templates') ?? false);
+    }
+
+    private function canViewScheduledSms(): bool
+    {
+        return $this->permissionsAreUnseeded()
+            || (Auth::user()?->can('sms.scheduled') ?? false)
+            || $this->canComposeSms();
+    }
+
     private function canManageSmsSettings(): bool
     {
         return $this->permissionsAreUnseeded() || (Auth::user()?->can('sms.settings') ?? false);
@@ -854,6 +917,8 @@ class Index extends Component
             'dashboard' => __('messages.sms_dashboard'),
             'buy' => __('messages.sms_buy_credits'),
             'compose' => __('messages.sms_compose'),
+            'templates' => __('messages.sms_templates'),
+            'scheduled' => __('messages.sms_scheduled_campaigns'),
             'campaigns' => __('messages.sms_campaign_history'),
             'wallets' => __('messages.sms_wallets_management'),
             'approvals' => __('messages.sms_purchase_approval'),

@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             TrackPublicSiteVisit::class,
         ]);
 
+        $middleware->validateCsrfTokens(except: [
+            'sms/beem/callback',
+        ]);
+
         $middleware->alias([
             'permission' => PermissionMiddleware::class,
         ]);

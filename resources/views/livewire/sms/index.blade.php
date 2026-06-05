@@ -30,7 +30,10 @@
             x-on:sms-settings-updated.window="message = '{{ __('messages.sms_settings_updated') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:sms-campaign-previewed.window="message = '{{ __('messages.sms_campaign_preview_ready') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:sms-campaign-sent.window="message = '{{ __('messages.sms_campaign_sent') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:sms-campaign-scheduled.window="message = '{{ __('messages.sms_campaign_scheduled') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-on:sms-campaign-retried.window="message = '{{ __('messages.sms_campaign_retried') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:sms-template-saved.window="message = '{{ __('messages.sms_template_saved') }}'; show = true; setTimeout(() => show = false, 3500)"
+            x-on:sms-template-deleted.window="message = '{{ __('messages.sms_template_deleted') }}'; show = true; setTimeout(() => show = false, 3500)"
             x-show="show"
             x-cloak
             class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
@@ -213,6 +216,20 @@
                                 <x-text-input wire:model="compose_title" id="compose_title" type="text" class="mt-1 block w-full" />
                                 <x-input-error :messages="$errors->get('compose_title')" class="mt-2" />
                             </div>
+                            <div class="md:col-span-2">
+                                <x-input-label for="compose_template_id" :value="__('messages.sms_template')" />
+                                <div class="mt-1 flex flex-col gap-2 sm:flex-row">
+                                    <select wire:model.live="compose_template_id" id="compose_template_id" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                        <option value="">{{ __('messages.sms_no_template') }}</option>
+                                        @foreach ($smsTemplates as $template)
+                                            <option value="{{ $template->id }}">{{ $template->title }}</option>
+                                        @endforeach
+                                    </select>
+                                    <x-secondary-button type="button" wire:click="applyTemplate">{{ __('messages.sms_apply_template') }}</x-secondary-button>
+                                </div>
+                                <p class="mt-2 text-xs text-gray-500">{{ __('messages.sms_template_placeholder_help') }}</p>
+                                <x-input-error :messages="$errors->get('compose_template_id')" class="mt-2" />
+                            </div>
                             <div>
                                 <x-input-label for="compose_target_type" :value="__('messages.sms_target_group')" />
                                 <select wire:model.live="compose_target_type" id="compose_target_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
@@ -274,10 +291,35 @@
                             <x-input-error :messages="$errors->get('compose_message')" class="mt-2" />
                         </div>
 
+                        <div class="grid gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 md:grid-cols-2">
+                            <label class="flex items-start gap-3 text-sm text-gray-700">
+                                <input wire:model.live="compose_personalization_enabled" type="checkbox" class="mt-1 rounded border-gray-300 text-red-700 focus:ring-red-600">
+                                <span>
+                                    <span class="block font-semibold text-gray-950">{{ __('messages.sms_personalize_message') }}</span>
+                                    <span class="block text-gray-500">{{ __('messages.sms_personalize_message_help') }}</span>
+                                </span>
+                            </label>
+                            <div>
+                                <x-input-label for="compose_send_mode" :value="__('messages.sms_send_mode')" />
+                                <select wire:model.live="compose_send_mode" id="compose_send_mode" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                                    <option value="now">{{ __('messages.sms_send_now') }}</option>
+                                    <option value="scheduled">{{ __('messages.sms_schedule_for_later') }}</option>
+                                </select>
+                                <x-input-error :messages="$errors->get('compose_send_mode')" class="mt-2" />
+                            </div>
+                            @if ($compose_send_mode === 'scheduled')
+                                <div class="md:col-span-2">
+                                    <x-input-label for="compose_scheduled_at" :value="__('messages.sms_scheduled_at')" />
+                                    <x-text-input wire:model="compose_scheduled_at" id="compose_scheduled_at" type="datetime-local" class="mt-1 block w-full" />
+                                    <x-input-error :messages="$errors->get('compose_scheduled_at')" class="mt-2" />
+                                </div>
+                            @endif
+                        </div>
+
                         <div class="flex flex-wrap justify-end gap-2">
                             <x-secondary-button type="button" wire:click="previewCampaign">{{ __('messages.sms_preview_campaign') }}</x-secondary-button>
                             <x-primary-button wire:confirm="{{ __('messages.sms_confirm_send', ['recipients' => number_format($preview['recipients_count']), 'parts' => number_format($preview['sms_parts']), 'credits' => number_format($preview['credits_required']), 'before' => number_format($preview['balance_before']), 'after' => number_format($preview['balance_after'])]) }}">
-                                {{ __('messages.sms_confirm_send_button') }}
+                                {{ $compose_send_mode === 'scheduled' ? __('messages.sms_confirm_schedule_button') : __('messages.sms_confirm_send_button') }}
                             </x-primary-button>
                         </div>
                     </form>
@@ -312,6 +354,118 @@
                             </p>
                         @endif
                     </aside>
+                </div>
+            </section>
+        @endif
+
+        @if ($section === 'templates' && $canManageSmsTemplates)
+            <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+                <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                    <h2 class="text-lg font-semibold text-gray-950">
+                        {{ $editing_template_id ? __('messages.sms_edit_template') : __('messages.sms_create_template') }}
+                    </h2>
+                    <form wire:submit="saveTemplate" class="mt-4 space-y-4">
+                        <div>
+                            <x-input-label for="template_title" :value="__('messages.title')" />
+                            <x-text-input wire:model="template_title" id="template_title" type="text" class="mt-1 block w-full" />
+                            <x-input-error :messages="$errors->get('template_title')" class="mt-2" />
+                        </div>
+                        <div>
+                            <x-input-label for="template_message" :value="__('messages.sms_message')" />
+                            <textarea wire:model="template_message" id="template_message" rows="8" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"></textarea>
+                            <p class="mt-2 text-xs text-gray-500">{{ __('messages.sms_template_placeholder_help') }}</p>
+                            <x-input-error :messages="$errors->get('template_message')" class="mt-2" />
+                        </div>
+                        <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                            <input wire:model="template_is_active" type="checkbox" class="rounded border-gray-300 text-red-700 focus:ring-red-600">
+                            <span>{{ __('messages.active') }}</span>
+                        </label>
+                        <div class="flex justify-end gap-2">
+                            @if ($editing_template_id)
+                                <x-secondary-button type="button" wire:click="cancelTemplateEdit">{{ __('messages.cancel') }}</x-secondary-button>
+                            @endif
+                            <x-primary-button>{{ __('messages.save') }}</x-primary-button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                    <div class="border-b border-gray-200 p-5">
+                        <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_templates') }}</h2>
+                        <p class="mt-1 text-sm text-gray-500">{{ __('messages.sms_templates_help') }}</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                            <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                                <tr>
+                                    <th class="px-4 py-3">{{ __('messages.title') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.status') }}</th>
+                                    <th class="px-4 py-3">{{ __('messages.actions') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 bg-white">
+                                @forelse ($allSmsTemplates as $template)
+                                    <tr>
+                                        <td class="px-4 py-3">
+                                            <p class="font-medium text-gray-950">{{ $template->title }}</p>
+                                            <p class="mt-1 line-clamp-2 text-xs text-gray-500">{{ $template->message }}</p>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600">
+                                                {{ $template->is_active ? __('messages.active') : __('messages.inactive') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex flex-wrap gap-3">
+                                                <button wire:click="editTemplate({{ $template->id }})" type="button" class="font-medium text-emerald-700 hover:text-emerald-900">{{ __('messages.edit') }}</button>
+                                                <button wire:click="deleteTemplate({{ $template->id }})" wire:confirm="{{ __('messages.sms_confirm_delete_template') }}" type="button" class="font-medium text-red-600 hover:text-red-800">{{ __('messages.delete') }}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="3" class="px-4 py-8 text-center text-gray-500">{{ __('messages.sms_no_templates') }}</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+        @endif
+
+        @if ($section === 'scheduled')
+            <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div class="border-b border-gray-200 p-5">
+                    <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_scheduled_campaigns') }}</h2>
+                    <p class="mt-1 text-sm text-gray-500">{{ __('messages.sms_scheduled_campaigns_help') }}</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase text-gray-500">
+                            <tr>
+                                <th class="px-4 py-3">{{ __('messages.sms_campaign_title') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.sms_wallet') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.sms_recipients') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.sms_scheduled_at') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.scheduled_by') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @forelse ($scheduledCampaigns as $campaign)
+                                <tr>
+                                    <td class="px-4 py-3">
+                                        <p class="font-medium text-gray-950">{{ $campaign->title }}</p>
+                                        <p class="mt-1 text-xs text-gray-500">{{ $campaign->template?->title ?? __('messages.sms_no_template') }}</p>
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600">{{ $campaign->wallet?->name }}</td>
+                                    <td class="px-4 py-3 text-gray-600">{{ number_format($campaign->recipients_count) }}</td>
+                                    <td class="px-4 py-3 text-gray-600">{{ $campaign->scheduled_at?->timezone(config('app.timezone'))->format('d M Y H:i') }}</td>
+                                    <td class="px-4 py-3 text-gray-600">{{ $campaign->scheduledBy?->name ?? $campaign->sentBy?->name }}</td>
+                                </tr>
+                            @empty
+                                <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">{{ __('messages.sms_no_scheduled_campaigns') }}</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </section>
         @endif
@@ -488,7 +642,15 @@
 
         @if ($section === 'reports')
             <section class="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_reports') }}</h2>
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-950">{{ __('messages.sms_reports') }}</h2>
+                        <p class="mt-1 text-sm text-gray-500">{{ __('messages.module_report_sms_summary') }}</p>
+                    </div>
+                    <x-primary-button type="button" wire:click="downloadSmsReport" wire:loading.attr="disabled" wire:target="downloadSmsReport">
+                        {{ __('messages.download_pdf') }}
+                    </x-primary-button>
+                </div>
                 <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ __('messages.sms_report_wallets') }}</p>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\MemberLeadershipAssignment;
+use App\Services\Sms\SmsCampaignDispatcher;
 use App\Support\LeadershipSystemAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Inspiring;
@@ -65,3 +66,10 @@ Artisan::command('leadership:grant-access', function (LeadershipSystemAccess $sy
     $this->table(['Name', 'Roles', 'Email', 'Phone', 'Temporary password'], $rows);
     $this->info(count($rows).' active leader account(s) prepared.');
 })->purpose('Create or update login access for active leadership assignments');
+
+Artisan::command('sms:send-scheduled {--limit=50}', function (SmsCampaignDispatcher $dispatcher): void {
+    $limit = max((int) $this->option('limit'), 1);
+    $sent = $dispatcher->sendDueScheduledCampaigns($limit);
+
+    $this->info($sent.' scheduled SMS campaign(s) processed.');
+})->purpose('Send scheduled SMS campaigns whose send time has arrived');

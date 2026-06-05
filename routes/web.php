@@ -4,6 +4,7 @@ use App\Http\Controllers\BulkImportTemplateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ImportUploadReportController;
 use App\Http\Controllers\PublicSiteController;
+use App\Http\Controllers\SmsDeliveryCallbackController;
 use App\Livewire\Calendar\Index as CalendarIndex;
 use App\Livewire\Departments\Index as DepartmentsIndex;
 use App\Livewire\Finance\Index as FinanceIndex;
@@ -24,6 +25,7 @@ Route::view('about', 'public.about')->name('public.about');
 Route::view('ministries', 'public.ministries')->name('public.ministries');
 Route::get('public-calendar', [PublicSiteController::class, 'calendar'])->name('public.calendar');
 Route::get('weekly-leadership', [PublicSiteController::class, 'weeklyLeadership'])->name('public.weekly-leadership');
+Route::post('sms/beem/callback', SmsDeliveryCallbackController::class)->name('sms.beem.callback');
 
 Route::get('dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
@@ -91,8 +93,8 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:finance.view|finance.record|finance.summary|finance.income-categories|finance.expense-categories|finance.expenses|finance.pledges|finance.transactions')
         ->name('finance.index');
     Route::get('sms/{section?}', SmsIndex::class)
-        ->whereIn('section', ['dashboard', 'buy', 'compose', 'campaigns', 'wallets', 'approvals', 'reports', 'settings'])
-        ->middleware('permission:sms.view|sms.buy|sms.compose|sms.wallets|sms.approve|sms.reports|sms.settings')
+        ->whereIn('section', ['dashboard', 'buy', 'compose', 'templates', 'scheduled', 'campaigns', 'wallets', 'approvals', 'reports', 'settings'])
+        ->middleware('permission:sms.view|sms.buy|sms.compose|sms.templates|sms.scheduled|sms.wallets|sms.approve|sms.reports|sms.settings')
         ->name('sms.index');
     Route::get('calendar/{section?}', CalendarIndex::class)
         ->whereIn('section', ['events', 'create', 'weekly-duties'])

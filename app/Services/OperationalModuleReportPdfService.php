@@ -11,6 +11,11 @@ use App\Models\MemberLeadershipAssignment;
 use App\Models\Pledge;
 use App\Models\PledgePayment;
 use App\Models\Service;
+use App\Models\SmsCampaign;
+use App\Models\SmsLog;
+use App\Models\SmsPurchase;
+use App\Models\SmsTransaction;
+use App\Models\SmsWallet;
 use App\Models\User;
 use App\Models\Zone;
 use App\Support\UserDataScope;
@@ -35,6 +40,7 @@ class OperationalModuleReportPdfService
         'finance',
         'calendar',
         'leadership',
+        'sms',
     ];
 
     public function __construct(private readonly OperationalReportPdfAssets $assets) {}
@@ -59,6 +65,10 @@ class OperationalModuleReportPdfService
 
         if ($module === 'finance') {
             return $user->can('finance.view') || $user->can('finance.record');
+        }
+
+        if ($module === 'sms') {
+            return $user->can('sms.reports') || $user->can('sms.view');
         }
 
         return $user->can('reports.view')
@@ -129,6 +139,7 @@ class OperationalModuleReportPdfService
             'finance' => $this->financeReport($scope),
             'calendar' => $this->calendarReport($scope),
             'leadership' => $this->leadershipReport($user, $scope),
+            'sms' => $this->smsReport($user, $scope),
             default => throw new InvalidArgumentException('Unsupported report module.'),
         };
     }
@@ -482,6 +493,104 @@ class OperationalModuleReportPdfService
         ];
 
         return $report;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function smsReport(User $user, UserDataScope $scope): array
+    {
+        $wallets = $this->smsWalletsQuery($user, $scope)
+            ->with(['department', 'user'])
+            ->orderBy('owner_type')
+            ->orderBy('name')
+            ->get();
+        $walletIds = $wallets->pluck('id');
+
+        $campaignQuery = SmsCampaign::query()->whereIn('sms_wallet_id', $walletIds);
+        $logsQuery = SmsLog::query()->whereHas('campaign', fn (Builder $query): Builder => $query->whereIn('sms_wallet_id', $walletIds));
+        $purchaseQuery = SmsPurchase::query()->whereIn('sms_wallet_id', $walletIds);
+
+        $sentCampaigns = (clone $campaignQuery)->whereIn('status', [SmsCampaign::STATUS_SENT, SmsCampaign::STATUS_PARTIAL])->count();
+        $scheduledCampaigns = (clone $campaignQuery)->where('status', SmsCampaign::STATUS_SCHEDULED)->count();
+        $failedCampaigns = (clone $campaignQuery)->where('status', SmsCampaign::STATUS_FAILED)->count();
+        $deliveredLogs = (clone $logsQuery)->where('status', SmsLog::STATUS_DELIVERED)->count();
+        $failedLogs = (clone $logsQuery)->whereIn('status', [SmsLog::STATUS_FAILED, SmsLog::STATUS_UNDELIVERED])->count();
+        $paidRevenue = (float) (clone $purchaseQuery)->where('status', SmsPurchase::STATUS_PAID)->sum('total_amount');
+
+        $recentCampaigns = (clone $campaignQuery)
+            ->with(['wallet', 'sentBy', 'scheduledBy'])
+            ->latest()
+            ->limit(12)
+            ->get();
+        $recentPurchases = (clone $purchaseQuery)
+            ->with(['wallet', 'requestedBy', 'approvedBy'])
+            ->latest()
+            ->limit(12)
+            ->get();
+
+        $report = $this->baseReport('sms', $scope);
+        $report['metrics'] = [
+            $this->metric(__('messages.sms_report_balance'), $this->number($wallets->sum('balance')), __('messages.sms_remaining')),
+            $this->metric(__('messages.sms_report_purchased'), $this->number($wallets->sum('credits_purchased')), __('messages.sms_purchased')),
+            $this->metric(__('messages.sms_report_used'), $this->number($wallets->sum('credits_used')), __('messages.sms_used')),
+            $this->metric(__('messages.sms_report_paid_revenue'), $this->currency($paidRevenue), __('messages.sms_purchase_approval')),
+        ];
+        $report['chartRows'] = $this->chartRows($wallets->map(fn (SmsWallet $wallet): array => [
+            'label' => $wallet->name,
+            'value' => (int) $wallet->credits_used,
+            'formatted' => $this->number($wallet->credits_used).' '.__('messages.sms_used'),
+        ])->all());
+        $report['sections'] = [
+            $this->tableSection(__('messages.sms_wallets_management'), [__('messages.sms_wallet'), __('messages.sms_purchased'), __('messages.sms_used'), __('messages.sms_remaining')], $wallets->map(fn (SmsWallet $wallet): array => [
+                $wallet->name,
+                $this->number($wallet->credits_purchased),
+                $this->number($wallet->credits_used),
+                $this->number($wallet->balance),
+            ])),
+            $this->tableSection(__('messages.sms_campaign_history'), [__('messages.sms_campaign_title'), __('messages.sms_recipients'), __('messages.sms_credits_used'), __('messages.status')], $recentCampaigns->map(fn (SmsCampaign $campaign): array => [
+                $campaign->title,
+                $this->number($campaign->recipients_count),
+                $this->number($campaign->total_credits_used),
+                __('messages.sms_status_'.$campaign->status),
+            ])),
+            $this->tableSection(__('messages.sms_purchase_approval'), [__('messages.sms_wallet'), __('messages.requested_by'), __('messages.sms_quantity'), __('messages.status')], $recentPurchases->map(fn (SmsPurchase $purchase): array => [
+                $purchase->wallet?->name ?: __('messages.not_recorded'),
+                $purchase->requestedBy?->name ?: __('messages.not_recorded'),
+                $this->number($purchase->sms_quantity),
+                __('messages.sms_purchase_status_'.$purchase->status),
+            ])),
+            $this->tableSection(__('messages.sms_delivery_summary'), [__('messages.metric'), __('messages.value')], [
+                [__('messages.sms_campaigns_sent'), $this->number($sentCampaigns)],
+                [__('messages.sms_scheduled_campaigns'), $this->number($scheduledCampaigns)],
+                [__('messages.sms_failed_count'), $this->number($failedCampaigns)],
+                [__('messages.sms_status_delivered'), $this->number($deliveredLogs)],
+                [__('messages.sms_status_failed'), $this->number($failedLogs)],
+            ]),
+        ];
+
+        return $report;
+    }
+
+    private function smsWalletsQuery(User $user, UserDataScope $scope): Builder
+    {
+        return SmsWallet::query()
+            ->when(! $scope->isChurchWide(), function (Builder $query) use ($user, $scope): void {
+                $query->where(function (Builder $query) use ($user, $scope): void {
+                    if ($scope->departmentIds() !== []) {
+                        $query->where(function (Builder $query) use ($scope): void {
+                            $query->where('owner_type', SmsWallet::OWNER_DEPARTMENT)
+                                ->whereIn('department_id', $scope->departmentIds());
+                        });
+                    }
+
+                    $method = $scope->departmentIds() !== [] ? 'orWhere' : 'where';
+                    $query->{$method}(function (Builder $query) use ($user): void {
+                        $query->where('owner_type', SmsWallet::OWNER_USER)
+                            ->where('user_id', $user->id);
+                    });
+                });
+            });
     }
 
     private function leadershipAssignmentsQuery(User $user, UserDataScope $scope): Builder

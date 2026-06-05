@@ -11,9 +11,12 @@ use App\Models\SmsCampaign;
 use App\Models\SmsLog;
 use App\Models\SmsPurchase;
 use App\Models\SmsSetting;
+use App\Models\SmsTemplate;
 use App\Models\SmsTransaction;
 use App\Models\SmsWallet;
 use App\Models\User;
+use App\Models\Zone;
+use App\Services\OperationalModuleReportPdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
@@ -456,6 +459,207 @@ class SmsManagementTest extends TestCase
             'balance_before' => 5,
             'balance_after' => 4,
         ]);
+    }
+
+    public function test_sms_template_can_be_created_and_applied_to_compose_form(): void
+    {
+        $user = User::factory()->create();
+        $this->givePermissions($user, ['sms.view', 'sms.compose', 'sms.templates']);
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'templates'])
+            ->set('template_title', 'Ibada ya Jumapili')
+            ->set('template_message', 'Karibu {first_name} kwenye ibada ya Jumapili.')
+            ->call('saveTemplate')
+            ->assertHasNoErrors()
+            ->assertDispatched('sms-template-saved');
+
+        $template = SmsTemplate::query()->firstOrFail();
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'compose'])
+            ->set('compose_template_id', (string) $template->id)
+            ->call('applyTemplate')
+            ->assertSet('compose_message', 'Karibu {first_name} kwenye ibada ya Jumapili.');
+    }
+
+    public function test_personalized_sms_renders_member_placeholders(): void
+    {
+        Http::fake([
+            '*' => Http::response(['messages' => [['message_id' => 'PERS-001']]], 200),
+        ]);
+
+        config([
+            'sms.beem.api_key' => 'api-key',
+            'sms.beem.secret_key' => 'secret-key',
+            'sms.beem.sender_id' => 'TAGCICC',
+        ]);
+
+        $department = $this->department('Wanaume');
+        $zone = Zone::create([
+            'name' => 'Changombe',
+            'slug' => 'changombe',
+        ]);
+        $user = $this->departmentLeader($department);
+        $this->givePermissions($user, ['sms.view', 'sms.compose']);
+        $wallet = $this->departmentWallet($department, 5);
+        $member = $this->memberInDepartment($department, '0654000010');
+        $member->update([
+            'first_name' => 'Adam',
+            'last_name' => 'Fumbuka',
+            'zone_id' => $zone->id,
+        ]);
+
+        SmsSetting::current()->update([
+            'sending_enabled' => true,
+            'sender_id' => 'TAGCICC',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'compose'])
+            ->set('compose_wallet_id', (string) $wallet->id)
+            ->set('compose_title', 'Salamu binafsi')
+            ->set('compose_target_type', 'single_member')
+            ->set('compose_member_id', (string) $member->id)
+            ->set('compose_personalization_enabled', true)
+            ->set('compose_message', 'Habari {first_name} wa {department} kutoka {zone}.')
+            ->call('sendCampaign')
+            ->assertHasNoErrors()
+            ->assertDispatched('sms-campaign-sent');
+
+        $this->assertDatabaseHas('sms_logs', [
+            'member_id' => $member->id,
+            'phone_number' => '255654000010',
+            'message' => 'Habari Adam wa Wanaume kutoka Changombe.',
+            'status' => SmsLog::STATUS_SENT,
+        ]);
+    }
+
+    public function test_sms_campaign_can_be_scheduled_and_processed_later(): void
+    {
+        Http::fake([
+            '*' => Http::response(['messages' => [['message_id' => 'SCH-001']]], 200),
+        ]);
+
+        config([
+            'sms.beem.api_key' => 'api-key',
+            'sms.beem.secret_key' => 'secret-key',
+            'sms.beem.sender_id' => 'TAGCICC',
+        ]);
+
+        $department = $this->department('Vijana');
+        $user = $this->departmentLeader($department);
+        $this->givePermissions($user, ['sms.view', 'sms.compose', 'sms.scheduled']);
+        $wallet = $this->departmentWallet($department, 5);
+        $member = $this->memberInDepartment($department, '0654000011');
+
+        SmsSetting::current()->update([
+            'sending_enabled' => true,
+            'sender_id' => 'TAGCICC',
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'compose'])
+            ->set('compose_wallet_id', (string) $wallet->id)
+            ->set('compose_title', 'Ratiba ya baadaye')
+            ->set('compose_target_type', 'single_member')
+            ->set('compose_member_id', (string) $member->id)
+            ->set('compose_message', 'Usisahau mkutano.')
+            ->set('compose_send_mode', 'scheduled')
+            ->set('compose_scheduled_at', now()->addHour()->format('Y-m-d\TH:i'))
+            ->call('sendCampaign')
+            ->assertHasNoErrors()
+            ->assertDispatched('sms-campaign-scheduled');
+
+        $campaign = SmsCampaign::query()->firstOrFail();
+        $this->assertSame(SmsCampaign::STATUS_SCHEDULED, $campaign->status);
+        $this->assertSame(5, $wallet->refresh()->balance);
+        $this->assertDatabaseHas('sms_logs', [
+            'sms_campaign_id' => $campaign->id,
+            'status' => SmsLog::STATUS_PENDING,
+        ]);
+
+        $campaign->update(['scheduled_at' => now()->subMinute()]);
+
+        $this->artisan('sms:send-scheduled')
+            ->assertExitCode(0);
+
+        $this->assertSame(SmsCampaign::STATUS_SENT, $campaign->refresh()->status);
+        $this->assertSame(4, $wallet->refresh()->balance);
+        $this->assertDatabaseHas('sms_logs', [
+            'sms_campaign_id' => $campaign->id,
+            'status' => SmsLog::STATUS_SENT,
+            'beem_message_id' => 'SCH-001',
+        ]);
+    }
+
+    public function test_beem_delivery_callback_updates_sms_log_status(): void
+    {
+        $campaign = SmsCampaign::create([
+            'sms_wallet_id' => SmsWallet::create([
+                'owner_type' => SmsWallet::OWNER_CHURCH,
+                'name' => 'Church SMS',
+                'balance' => 0,
+                'is_active' => true,
+            ])->id,
+            'title' => 'Callback campaign',
+            'target_type' => 'manual_recipients',
+            'message' => 'Karibu',
+            'recipients_count' => 1,
+            'sms_parts' => 1,
+            'status' => SmsCampaign::STATUS_SENT,
+        ]);
+        $log = SmsLog::create([
+            'sms_campaign_id' => $campaign->id,
+            'recipient_name' => 'Mgeni',
+            'phone_number' => '255654000012',
+            'message' => 'Karibu',
+            'status' => SmsLog::STATUS_SENT,
+            'beem_message_id' => 'CALL-001',
+        ]);
+
+        $this->postJson('/sms/beem/callback', [
+            'message_id' => 'CALL-001',
+            'status' => 'delivered',
+        ])->assertOk();
+
+        $this->assertSame(SmsLog::STATUS_DELIVERED, $log->refresh()->status);
+        $this->assertSame('delivered', $log->provider_status);
+        $this->assertNotNull($log->delivered_at);
+    }
+
+    public function test_sms_report_can_be_downloaded_from_sms_module(): void
+    {
+        $this->travelTo('2026-06-05 10:00:00');
+
+        $user = User::factory()->create();
+        $this->givePermissions($user, ['sms.view', 'sms.reports']);
+        $wallet = SmsWallet::create([
+            'owner_type' => SmsWallet::OWNER_CHURCH,
+            'name' => 'Church SMS',
+            'credits_purchased' => 20,
+            'credits_used' => 5,
+            'balance' => 15,
+            'is_active' => true,
+        ]);
+        SmsTransaction::create([
+            'sms_wallet_id' => $wallet->id,
+            'transaction_type' => SmsTransaction::TYPE_PURCHASE,
+            'credits_in' => 20,
+            'credits_out' => 0,
+            'balance_before' => 0,
+            'balance_after' => 20,
+            'description' => 'Initial SMS',
+            'performed_by_user_id' => $user->id,
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(SmsIndex::class, ['section' => 'reports'])
+            ->call('downloadSmsReport')
+            ->assertFileDownloaded(
+                'tag-cicc-sms-operational-report-20260605-100000.pdf',
+                contentType: OperationalModuleReportPdfService::CONTENT_TYPE,
+            );
     }
 
     /**

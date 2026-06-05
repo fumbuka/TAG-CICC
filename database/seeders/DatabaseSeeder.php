@@ -49,6 +49,7 @@ class DatabaseSeeder extends Seeder
             'sms.view',
             'sms.buy',
             'sms.compose',
+            'sms.templates',
             'sms.wallets',
             'sms.approve',
             'sms.reports',
@@ -83,6 +84,7 @@ class DatabaseSeeder extends Seeder
             'users.role-matrix',
             'sms.dashboard',
             'sms.campaigns',
+            'sms.scheduled',
         ];
 
         $permissions = array_values(array_unique([...$basePermissions, ...$submodulePermissions]));
@@ -124,6 +126,8 @@ class DatabaseSeeder extends Seeder
                 'sms.view',
                 'sms.buy',
                 'sms.compose',
+                'sms.templates',
+                'sms.scheduled',
                 'sms.wallets',
                 'sms.approve',
                 'sms.reports',
@@ -161,6 +165,8 @@ class DatabaseSeeder extends Seeder
                 'sms.view',
                 'sms.buy',
                 'sms.compose',
+                'sms.templates',
+                'sms.scheduled',
                 'sms.wallets',
                 'sms.reports',
             ],
@@ -189,6 +195,8 @@ class DatabaseSeeder extends Seeder
                 'sms.view',
                 'sms.buy',
                 'sms.compose',
+                'sms.templates',
+                'sms.scheduled',
                 'sms.reports',
             ],
             'Makamu Mkurugenzi wa Idara' => [
@@ -199,6 +207,8 @@ class DatabaseSeeder extends Seeder
                 'sms.view',
                 'sms.buy',
                 'sms.compose',
+                'sms.templates',
+                'sms.scheduled',
             ],
             'Katibu wa Idara' => [
                 'dashboard.view',
@@ -211,6 +221,8 @@ class DatabaseSeeder extends Seeder
                 'sms.view',
                 'sms.buy',
                 'sms.compose',
+                'sms.templates',
+                'sms.scheduled',
                 'sms.reports',
             ],
             'Makamu Katibu wa Idara' => [
@@ -224,6 +236,8 @@ class DatabaseSeeder extends Seeder
                 'sms.view',
                 'sms.buy',
                 'sms.compose',
+                'sms.templates',
+                'sms.scheduled',
             ],
             'Mweka Hazina wa Idara' => [
                 'dashboard.view',
